@@ -1,0 +1,96 @@
+name: Test a nasazení
+
+# develop -> testovací subdoména, main -> produkce
+# Každé GitHub "environment" (test / production) má vlastní secrets a variables:
+#   secrets: FTP_SERVER, FTP_USERNAME, FTP_PASSWORD, PAP_MAINTENANCE_TOKEN
+#   vars:    FTP_DIR (např. /test.servicepap.com/), APP_URL (např. https://test.servicepap.com)
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, intl, gd, zip
+          coverage: none
+
+      - name: Composer install
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Testy
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan test
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'test' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, gd, zip
+          coverage: none
+
+      - name: Composer install (produkční)
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
+
+      # Bez SSH: nahrajeme hotový balík včetně vendor/. Akce si pamatuje stav
+      # na serveru (.ftp-deploy-sync-state.json) a příště nahraje jen změny.
+      - name: Nahrání přes FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          server-dir: ${{ vars.FTP_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            node_modules/**
+            tests/**
+            .env
+            .env.*
+            database/*.sqlite
+            storage/app/**
+            storage/logs/**
+            storage/framework/cache/**
+            storage/framework/sessions/**
+            storage/framework/views/**
+            storage/framework/testing/**
+            bootstrap/cache/config.php
+            bootstrap/cache/routes-*.php
+            bootstrap/cache/events.php
+
+      - name: Údržba po nasazení (adresáře, migrace, cache)
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          TOKEN: ${{ secrets.PAP_MAINTENANCE_TOKEN }}
+        run: |
+          set -e
+          for action in optimize-clear setup migrate optimize; do
+            echo "== $action"
+            curl --fail-with-body -sS -X POST -H "X-Maintenance-Token: $TOKEN" "$APP_URL/_maint/$action"
+            echo
+          done
+          curl --fail-with-body -sS "$APP_URL/_health"
