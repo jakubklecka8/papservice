@@ -66,6 +66,18 @@ class TicketController extends Controller
         );
     }
 
+    /** Počty zakázek podle stavu (pro záložky v portálu) */
+    public function summary(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate(['project_id' => ['nullable', 'integer']]);
+        $query = Ticket::query()->visibleTo($request->user());
+        if (! empty($data['project_id'])) {
+            $query->where('project_id', $data['project_id']);
+        }
+
+        return response()->json(['data' => $query->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')]);
+    }
+
     public function store(Request $request): TicketResource
     {
         $user = $request->user();

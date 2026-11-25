@@ -33,9 +33,14 @@ class LookupController extends Controller
         $data = $request->validate([
             'project_id' => ['nullable', 'integer'],
             'q' => ['nullable', 'string', 'max:100'],
+            'all' => ['nullable', 'boolean'],          // i neaktivní (správa provozoven)
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
-        $query = Location::query()->visibleTo($request->user())->where('is_active', true)->orderBy('name');
+        $query = Location::query()->visibleTo($request->user())->orderBy('name');
+        if (empty($data['all'])) {
+            $query->where('is_active', true);
+        }
         if (! empty($data['project_id'])) {
             $query->where('project_id', $data['project_id']);
         }
@@ -44,8 +49,8 @@ class LookupController extends Controller
             $query->where(fn ($w) => $w->where('name', 'like', $q)->orWhere('code', 'like', $q)->orWhere('city', 'like', $q));
         }
 
-        return response()->json($query->paginate(50, [
-            'id', 'project_id', 'end_customer_id', 'code', 'name', 'street', 'city', 'zip', 'country', 'lat', 'lng',
+        return response()->json($query->paginate($data['per_page'] ?? 50, [
+            'id', 'project_id', 'end_customer_id', 'code', 'name', 'street', 'city', 'zip', 'country', 'lat', 'lng', 'note', 'is_active',
         ]));
     }
 

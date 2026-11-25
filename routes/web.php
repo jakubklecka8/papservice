@@ -2,10 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Zatím jediné rozhraní je aplikace pro techniky; webový portál přibude později.
-Route::redirect('/', '/technik/');
-Route::redirect('/technik', '/technik/');
+// Rozcestník: dispečink (počítač) a aplikace technika (telefon)
+Route::get('/', fn () => response()->view('home'));
 
-// Apache servíruje /technik/ přímo ze složky public/technik (DirectoryIndex).
-// Tahle routa je jen pojistka pro servery, které adresář nepředají (např. php artisan serve).
+Route::redirect('/technik', '/technik/');
+Route::redirect('/dispecink', '/dispecink/');
+
+// Apache servíruje /technik/ a /dispecink/ přímo ze složek v public/ (DirectoryIndex).
+// Tyhle routy jsou jen pojistka pro servery, které adresář nepředají (např. php artisan serve).
 Route::get('/technik/', fn () => response()->file(public_path('technik/index.html'), ['Cache-Control' => 'no-cache']));
+Route::get('/dispecink/', fn () => response()->file(public_path('dispecink/index.html'), ['Cache-Control' => 'no-cache']));

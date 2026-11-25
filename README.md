@@ -60,6 +60,19 @@ Přihlášení: `POST /api/v1/auth/login {email, password, device_name}` vrátí
 | PATCH | `/attachments/{uuid} {customer_visible}` | dispečer |
 | GET | `/projects`, `/locations`, `/technicians` | číselníky |
 
+## Dispečink (portál)
+
+Adresa `/dispecink/` (rozcestník je na `/`). CZ/PL.
+
+- zakázky v záložkách (nové, rozpracované, ke schválení, uzavřené), filtr podle projektu, technika a hledání
+- nová zakázka: projekt, vyhledání provozovny, priorita, termín, nahlašovatel, rovnou přidělení technikovi
+- detail: úprava, přidělení a přeřazení, čeká, zrušit, znovu otevřít, historie
+- návštěvy techniků s díly a fotkami, výběr fotek pro zákazníka, vrácení technikovi k doplnění
+- protokol CZ/PL: náhled (v prohlížeči Uložit jako PDF) a schválení, které zakázku uzavře
+- provozovny: zakládání a úprava (admin, dispečer svého projektu)
+- uživatelé (jen admin): role, projekty, provozovny zákazníka, jazyk, deaktivace
+- společník a ekonom mají jen čtení
+
 ## Aplikace pro techniky (PWA)
 
 Adresa `/technik/` (z `/` se přesměruje). V telefonu otevřít v Chrome/Safari a dát **Přidat na plochu**.
