@@ -11,3 +11,6 @@ jobs:
         run: |
           echo | timeout 20 openssl s_client -starttls ftp -connect "${FTP_SERVER}:21" -servername "${FTP_SERVER}" 2>/dev/null \
             | openssl x509 -noout -subject -ext subjectAltName
+          IP=$(getent ahostsv4 "$FTP_SERVER" | awk 'NR==1{print $1}')
+          echo "IP: $IP"
+          echo "PTR: $(dig +short -x "$IP")"
