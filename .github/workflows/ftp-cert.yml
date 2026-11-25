@@ -5,12 +5,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: test
     steps:
-      - name: Jména v certifikátu FTP serveru
+      - name: Ověření hostitele s platným certifikátem
         env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          echo | timeout 20 openssl s_client -starttls ftp -connect "${FTP_SERVER}:21" -servername "${FTP_SERVER}" 2>/dev/null \
-            | openssl x509 -noout -subject -ext subjectAltName
-          IP=$(getent ahostsv4 "$FTP_SERVER" | awk 'NR==1{print $1}')
-          echo "IP: $IP"
-          echo "PTR: $(dig +short -x "$IP")"
+          for h in dw233.nameserver.sk ftp.nameserver.sk; do
+            echo "== $h -> $(getent ahostsv4 $h | awk 'NR==1{print $1}')"
+            curl -sS --ssl-reqd --max-time 25 --user "${FTP_USERNAME}:${FTP_PASSWORD}" --list-only "ftp://$h/" | head -5 && echo "TLS+login OK: $h" || true
+          done
