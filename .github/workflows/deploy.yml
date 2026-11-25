@@ -108,3 +108,9 @@ jobs:
             echo
           done
           curl --fail-with-body -sS "$APP_URL/_health"
+          echo
+          for path in /technik/ /technik/js/app.js /technik/manifest.webmanifest /technik/sw.js; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" "$APP_URL$path")
+            echo "$path -> $code"
+            [ "$code" = "200" ]
+          done
