@@ -19,7 +19,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'test' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -56,7 +56,7 @@ jobs:
       # Bez SSH: nahrajeme hotový balík včetně vendor/. Akce si pamatuje stav
       # na serveru (.ftp-deploy-sync-state.json) a příště nahraje jen změny.
       - name: Nahrání přes FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
