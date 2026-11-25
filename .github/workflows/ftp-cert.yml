@@ -1,0 +1,13 @@
+name: FTP certifikát (diagnostika)
+on: workflow_dispatch
+jobs:
+  cert:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Jména v certifikátu FTP serveru
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+        run: |
+          echo | timeout 20 openssl s_client -starttls ftp -connect "${FTP_SERVER}:21" -servername "${FTP_SERVER}" 2>/dev/null \
+            | openssl x509 -noout -subject -ext subjectAltName
