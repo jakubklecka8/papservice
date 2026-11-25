@@ -36,6 +36,33 @@ jobs:
           php artisan key:generate
           php artisan test
 
+  # Hotový balík i s vendor/ ke stažení (Actions → běh → Artifacts) pro ruční nahrání FileZillou
+  balik:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, gd, zip
+          coverage: none
+
+      - name: Composer install (produkční)
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
+
+      - name: Vyčistit
+        run: rm -rf .git .github tests node_modules
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pap-service-${{ github.ref_name }}
+          path: .
+          include-hidden-files: true
+          retention-days: 14
+
   deploy:
     needs: test
     if: github.event_name != 'pull_request'
