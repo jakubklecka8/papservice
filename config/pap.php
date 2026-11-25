@@ -13,6 +13,9 @@ return [
     // Kolik sekund smí jeden běh cronu zpracovávat frontu
     'tick_seconds' => (int) env('PAP_TICK_SECONDS', 45),
 
+    // Kontakt v hlavičce push notifikací (mailto: nebo URL)
+    'vapid_subject' => env('PAP_VAPID_SUBJECT', 'mailto:servis@servicepap.com'),
+
     // Admin účet vytvořený seederem
     // Testovací účty (DemoSeeder) – jen mimo produkci
     'seed_demo' => (bool) env('PAP_SEED_DEMO', false),

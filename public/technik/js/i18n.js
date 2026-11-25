@@ -32,6 +32,11 @@ const T = {
     sessionExpired: 'Přihlášení vypršelo – přihlas se znovu. Neodeslané změny zůstanou uložené.',
     cancel: 'Zrušit', ok: 'OK', close: 'Zavřít', version: 'Verze',
     types: { visit: 'Návštěva', submit: 'Odeslání', status: 'Stav', photo: 'Fotka' },
+    pushAsk: 'Zapni upozornění – dozvíš se hned o nové nebo vrácené zakázce.', pushEnable: 'Zapnout upozornění',
+    pushOn: 'Upozornění: zapnutá', pushOff: 'Upozornění: vypnutá', pushTest: 'Zkušební upozornění', pushTestSent: 'Odesláno – přijde do minuty.',
+    pushDenied: 'Upozornění jsou v prohlížeči zakázaná. Povol je v nastavení telefonu pro tuto stránku.',
+    pushIos: 'Na iPhonu fungují upozornění jen po přidání na plochu (Sdílet → Přidat na plochu).',
+    pushEnabled: 'Upozornění zapnuta', later: 'Později',
   },
   pl: {
     appName: 'PAP Technik',
@@ -64,6 +69,11 @@ const T = {
     sessionExpired: 'Sesja wygasła – zaloguj się ponownie. Niewysłane zmiany pozostaną zapisane.',
     cancel: 'Anuluj', ok: 'OK', close: 'Zamknij', version: 'Wersja',
     types: { visit: 'Wizyta', submit: 'Wysłanie', status: 'Status', photo: 'Zdjęcie' },
+    pushAsk: 'Włącz powiadomienia – od razu dowiesz się o nowym lub zwróconym zleceniu.', pushEnable: 'Włącz powiadomienia',
+    pushOn: 'Powiadomienia: włączone', pushOff: 'Powiadomienia: wyłączone', pushTest: 'Powiadomienie testowe', pushTestSent: 'Wysłano – dotrze w ciągu minuty.',
+    pushDenied: 'Powiadomienia są zablokowane w przeglądarce. Zezwól na nie w ustawieniach telefonu dla tej strony.',
+    pushIos: 'Na iPhonie powiadomienia działają tylko po dodaniu do ekranu głównego (Udostępnij → Do ekranu początkowego).',
+    pushEnabled: 'Powiadomienia włączone', later: 'Później',
   },
 };
 

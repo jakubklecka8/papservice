@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\VisitResource;
 use App\Models\Ticket;
 use App\Models\Visit;
+use App\Services\TechnicianNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -161,6 +162,8 @@ class VisitController extends Controller
             $visit->ticket->protocols()->where('visit_id', $visit->id)->where('status', 'draft')->delete();
             $visit->ticket->changeStatus(TicketStatus::InProgress, $request->user(), 'Vráceno k doplnění: '.$data['note']);
         });
+
+        app(TechnicianNotifier::class)->returned($visit->ticket, $visit->technician, $data['note']);
 
         return $this->current($visit, 200);
     }

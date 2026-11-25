@@ -1,10 +1,10 @@
 // Service worker – aplikace funguje i bez signálu.
 // Soubory aplikace: síť napřed (vždy aktuální verze), při výpadku z cache.
 // API se tu necachuje – data drží aplikace v IndexedDB.
-const CACHE = 'pap-technik-v1';
+const CACHE = 'pap-technik-v2';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/app.js', 'js/api.js', 'js/db.js', 'js/sync.js', 'js/i18n.js', 'js/ui.js', 'js/photo.js',
+  'js/app.js', 'js/api.js', 'js/db.js', 'js/sync.js', 'js/i18n.js', 'js/ui.js', 'js/photo.js', 'js/push.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 
@@ -39,5 +39,41 @@ self.addEventListener('fetch', (event) => {
       if (req.mode === 'navigate') return cache.match('index.html');
       throw e;
     }
+  })());
+});
+
+// ---- push notifikace (nová / vrácená / zrušená zakázka)
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: 'PAP Service', body: event.data?.text() || '' }; }
+  const url = data.url || '/technik/';
+  event.waitUntil((async () => {
+    await self.registration.showNotification(data.title || 'PAP Service', {
+      body: data.body || '',
+      tag: data.tag || undefined,
+      renotify: !!data.tag,
+      icon: '/technik/icons/icon-192.png',
+      badge: '/technik/icons/icon-192.png',
+      data: { url },
+    });
+    // otevřená aplikace si obnoví data
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    wins.forEach((w) => w.postMessage({ type: 'push', url }));
+  })());
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/technik/';
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const w of wins) {
+      if (new URL(w.url).pathname.startsWith('/technik/')) {
+        await w.focus();
+        w.postMessage({ type: 'open', url });
+        return;
+      }
+    }
+    await self.clients.openWindow(url);
   })());
 });

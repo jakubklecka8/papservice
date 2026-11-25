@@ -90,6 +90,7 @@ Adresa `/technik/` (z `/` se přesměruje). V telefonu otevřít v Chrome/Safari
 - stav „čeká“ s poznámkou, odeslání ke schválení
 - **offline:** vše se ukládá do telefonu (IndexedDB) a odesílá frontou, až je signál. Aplikace se otevře i bez signálu.
 - CZ/PL podle profilu uživatele, přepínání v menu
+- **push upozornění**: nová / přeřazená zakázka, vrácená návštěva, zrušená zakázka. Zapíná se v aplikaci (banner nebo menu), v menu je i zkušební upozornění. Na iPhonu jen po přidání na plochu (iOS 16.4+). Klíče VAPID se vygenerují samy do `storage/app/private/vapid.json`. Odesílá je cron (do minuty).
 - zdrojáky jsou v `public/technik/` (čisté JS, bez buildu)
 
 ## Další krok

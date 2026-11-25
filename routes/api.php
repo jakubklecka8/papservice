@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\ProtocolController;
+use App\Http\Controllers\Api\V1\PushController;
 use App\Http\Controllers\Api\V1\TicketController;
 use App\Http\Controllers\Api\V1\VisitController;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
+
+        Route::get('push/key', [PushController::class, 'key']);
+        Route::post('push/subscribe', [PushController::class, 'subscribe']);
+        Route::post('push/unsubscribe', [PushController::class, 'unsubscribe']);
+        Route::post('push/test', [PushController::class, 'test']);
 
         Route::get('projects', [LookupController::class, 'projects']);
         Route::get('locations', [LookupController::class, 'locations']);

@@ -7,11 +7,12 @@ import { api, setToken, ApiError, NetworkError } from './api.js';
 import { enqueue, stats, pendingFor, discard, retryFailed, kick, syncEvents } from './sync.js';
 import { t, setLang, getLang } from './i18n.js';
 import { shrink } from './photo.js';
+import { pushSupported, pushPermission, enablePush, refreshPush, disablePushForLogout, needsInstallForPush } from './push.js';
 import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -41,8 +42,19 @@ async function boot() {
   window.addEventListener('offline', updateOnline);
   updateOnline();
 
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'open' && e.data.url) {
+        const hash = e.data.url.split('#')[1];
+        if (hash) location.hash = '#' + hash;
+      }
+      if (e.data?.type === 'push' && parseRoute().view === 'list') refreshList(false);
+    });
+  }
+
   route();
   kick(1000);
+  if (state.me) refreshPush();
 }
 
 function bindChrome() {
@@ -172,6 +184,7 @@ function renderLogin() {
       if (!(await kv.get('lang'))) setLang(res.user.locale || 'cs');
       location.hash = '#/';
       kick(200);
+      refreshPush();
     } catch (ex) {
       err.textContent = ex instanceof NetworkError ? t('offline') : t('loginFailed');
       err.hidden = false;
@@ -232,11 +245,34 @@ async function drawList(items, fromCache) {
       </a>`;
   }).join('');
 
+  const askPush = pushSupported() && pushPermission() === 'default' && !(await kv.get('pushDismissed'));
+  const iosHint = !pushSupported() && needsInstallForPush() && !(await kv.get('pushDismissed'));
+
   $app.innerHTML = `
     ${fromCache && !navigator.onLine ? `<div class="banner warn">${esc(t('offlineCached'))}</div>` : ''}
+    ${askPush ? `<div class="banner warn" id="push-ask">🔔 ${esc(t('pushAsk'))}
+      <div class="row" style="margin-top:8px"><button class="btn small" id="push-later">${esc(t('later'))}</button><button class="btn small primary" id="push-on">${esc(t('pushEnable'))}</button></div></div>` : ''}
+    ${iosHint ? `<div class="banner warn" id="push-ask">🔔 ${esc(t('pushIos'))}
+      <div class="row" style="margin-top:8px"><button class="btn small" id="push-later">${esc(t('ok'))}</button></div></div>` : ''}
     ${cards || `<div class="empty">${esc(t('noTickets'))}</div>`}
     <div class="actions"><button class="btn" id="btn-refresh">↻ ${esc(t('refresh'))}</button></div>`;
   document.getElementById('btn-refresh').onclick = () => { kick(0); refreshList(true); };
+  document.getElementById('push-later')?.addEventListener('click', async () => {
+    await kv.set('pushDismissed', true);
+    document.getElementById('push-ask')?.remove();
+  });
+  document.getElementById('push-on')?.addEventListener('click', turnOnPush);
+}
+
+async function turnOnPush() {
+  try {
+    const res = await enablePush();
+    if (res === 'granted') toast(t('pushEnabled'));
+    else if (res === 'denied') toast(t('pushDenied'), true, 6000);
+  } catch {
+    toast(t('loadFailed'), true);
+  }
+  document.getElementById('push-ask')?.remove();
 }
 
 // ---------------------------------------------------------------- detail zakázky
@@ -693,6 +729,10 @@ function openMenu() {
   sheet(`
     <h3>${esc(state.me?.name || t('menu'))}</h3>
     <button class="menu-item" data-a="sync">⇅ ${esc(t('sync'))}</button>
+    ${pushSupported() ? (pushPermission() === 'granted'
+    ? `<button class="menu-item" data-a="pushtest">🔔 ${esc(t('pushOn'))} · ${esc(t('pushTest'))}</button>`
+    : `<button class="menu-item" data-a="push">🔕 ${esc(t('pushOff'))} · ${esc(t('pushEnable'))}</button>`)
+    : (needsInstallForPush() ? `<div class="menu-item muted small">🔕 ${esc(t('pushIos'))}</div>` : '')}
     <button class="menu-item" data-a="lang">🌐 ${esc(t('language'))}: ${getLang() === 'cs' ? 'Čeština → Polski' : 'Polski → Čeština'}</button>
     <button class="menu-item" data-a="logout">⎋ ${esc(t('logout'))}</button>
     <p class="muted small">${esc(t('version'))} ${APP_VERSION}</p>
@@ -700,6 +740,10 @@ function openMenu() {
     dlg.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => close(b.dataset.a); });
   }).then(async (a) => {
     if (a === 'sync') openSync();
+    if (a === 'push') turnOnPush();
+    if (a === 'pushtest') {
+      try { await api.pushTest(); toast(t('pushTestSent')); } catch { toast(t('offline'), true); }
+    }
     if (a === 'lang') {
       setLang(getLang() === 'cs' ? 'pl' : 'cs');
       await kv.set('lang', getLang());
@@ -743,6 +787,7 @@ async function openSync() {
 async function logout() {
   const s = await stats();
   if (s.items.length && !(await confirmSheet(t('logoutPending')))) return;
+  await disablePushForLogout();
   try { await api.logout(); } catch { /* offline – token se smaže lokálně */ }
   await outbox.clear();
   const lang = getLang();

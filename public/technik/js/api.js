@@ -60,5 +60,9 @@ export const api = {
   submitVisit: (uuid) => request('POST', `/visits/${uuid}/submit`),
   setStatus: (ticketId, status, note) => request('POST', `/tickets/${ticketId}/status`, { status, note }),
   uploadPhoto: (form) => request('POST', '/attachments', form, { timeout: 120000 }),
+  pushKey: () => request('GET', '/push/key'),
+  pushSubscribe: (sub) => request('POST', '/push/subscribe', sub),
+  pushUnsubscribe: (endpoint) => request('POST', '/push/unsubscribe', { endpoint }),
+  pushTest: () => request('POST', '/push/test'),
   download: (uuid) => request('GET', `/attachments/${uuid}/download`, undefined, { raw: true, timeout: 60000 }),
 };

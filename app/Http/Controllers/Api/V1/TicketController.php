@@ -10,6 +10,8 @@ use App\Http\Resources\TicketResource;
 use App\Models\Location;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\TechnicianNotifier;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
@@ -67,7 +69,7 @@ class TicketController extends Controller
     }
 
     /** Počty zakázek podle stavu (pro záložky v portálu) */
-    public function summary(Request $request): \Illuminate\Http\JsonResponse
+    public function summary(Request $request): JsonResponse
     {
         $data = $request->validate(['project_id' => ['nullable', 'integer']]);
         $query = Ticket::query()->visibleTo($request->user());
@@ -201,6 +203,8 @@ class TicketController extends Controller
         abort_unless($technician->is_active && $technician->hasRole(Role::Technik), 422, 'Vybraný uživatel není aktivní technik.');
         abort_unless($ticket->status->isOpen(), 422, 'Uzavřenou zakázku nelze přidělit.');
 
+        $previous = $ticket->assigned_technician_id;
+
         DB::transaction(function () use ($ticket, $technician, $request, $data) {
             $ticket->fill([
                 'assigned_technician_id' => $technician->id,
@@ -223,6 +227,10 @@ class TicketController extends Controller
                 ]);
             }
         });
+
+        if ($previous !== $technician->id) {
+            app(TechnicianNotifier::class)->assigned($ticket, $technician);
+        }
 
         return new TicketResource($ticket->refresh()->load(['project', 'location', 'technician']));
     }
@@ -247,6 +255,10 @@ class TicketController extends Controller
         }
 
         $ticket->changeStatus($to, $user, $data['note'] ?? null);
+
+        if ($to === TicketStatus::Cancelled && $ticket->technician && $ticket->assigned_technician_id !== $user->id) {
+            app(TechnicianNotifier::class)->cancelled($ticket, $ticket->technician);
+        }
 
         return new TicketResource($ticket->load(['project', 'location', 'technician']));
     }
