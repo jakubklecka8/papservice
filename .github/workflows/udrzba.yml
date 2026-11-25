@@ -1,0 +1,33 @@
+name: Údržba serveru
+
+# Ruční spuštění: Actions → Údržba serveru → Run workflow
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Akce'
+        required: true
+        default: seed
+        type: choice
+        options: [seed, migrate, migrate-status, optimize, optimize-clear, setup, tick]
+      environment:
+        description: 'Prostředí'
+        required: true
+        default: test
+        type: choice
+        options: [test, production]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: ${{ inputs.action }}
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          TOKEN: ${{ secrets.PAP_MAINTENANCE_TOKEN }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          curl --fail-with-body -sS --max-time 300 -X POST -H "X-Maintenance-Token: $TOKEN" "$APP_URL/_maint/$ACTION"
+          echo
+          curl -sS "$APP_URL/_health"
