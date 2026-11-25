@@ -154,7 +154,7 @@ class TicketController extends Controller
         $ticket->load([
             'project', 'location', 'technician', 'attachments', 'protocols.visit',
             'visits' => fn ($q) => $q->orderBy('id'),
-            'visits.technician', 'visits.parts', 'visits.attachments', 'history.user',
+            'visits.technician', 'visits.parts.part', 'visits.attachments', 'history.user',
         ]);
 
         return new TicketResource($ticket);

@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\VisitResource;
 use App\Models\Ticket;
 use App\Models\Visit;
+use App\Services\StockService;
 use App\Services\TechnicianNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class VisitController extends Controller
             'parts' => ['sometimes', 'array', 'max:100'],
             'parts.*.uuid' => ['required', 'uuid'],
             'parts.*.name' => ['required', 'string', 'max:255'],
+            'parts.*.part_id' => ['nullable', 'integer', 'exists:parts,id'],
             'parts.*.part_number' => ['nullable', 'string', 'max:100'],
             'parts.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'parts.*.serial_removed' => ['nullable', 'string', 'max:100'],
@@ -115,7 +117,7 @@ class VisitController extends Controller
     {
         abort_unless($visit->ticket && $visit->ticket->isVisibleTo($request->user()) && ! $request->user()->isCustomerOnly(), 403);
 
-        return new VisitResource($visit->load(['technician', 'parts', 'attachments']));
+        return new VisitResource($visit->load(['technician', 'parts.part', 'attachments']));
     }
 
     /** Technik odešle návštěvu ke schválení */
@@ -145,6 +147,8 @@ class VisitController extends Controller
         DB::transaction(function () use ($visit, $ticket, $user) {
             $visit->update(['status' => VisitStatus::Submitted, 'submitted_at' => now(), 'return_note' => null]);
             $ticket->changeStatus(TicketStatus::Completed, $user, 'Návštěva odeslána ke schválení');
+            // díly z katalogu se odečtou ze skladu technika
+            app(StockService::class)->syncConsumption($visit);
         });
 
         return $this->current($visit, 200);
@@ -170,7 +174,7 @@ class VisitController extends Controller
 
     private function current(Visit $visit, int $status, ?string $message = null): JsonResponse
     {
-        $payload = ['data' => (new VisitResource($visit->fresh()->load(['technician', 'parts', 'attachments'])))->resolve()];
+        $payload = ['data' => (new VisitResource($visit->fresh()->load(['technician', 'parts.part', 'attachments'])))->resolve()];
         if ($message) {
             $payload['message'] = $message;
         }

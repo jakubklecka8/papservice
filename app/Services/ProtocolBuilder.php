@@ -36,6 +36,7 @@ class ProtocolBuilder
             'qty' => 'Množství',
             'serial_removed' => 'S/N demontováno',
             'serial_installed' => 'S/N namontováno',
+            'missing' => 'chybí',
             'photos' => 'Počet fotografií',
             'approved' => 'Schváleno',
         ],
@@ -63,6 +64,7 @@ class ProtocolBuilder
             'qty' => 'Ilość',
             'serial_removed' => 'S/N zdemontowany',
             'serial_installed' => 'S/N zamontowany',
+            'missing' => 'brak',
             'photos' => 'Liczba zdjęć',
             'approved' => 'Zatwierdzono',
         ],
@@ -71,7 +73,7 @@ class ProtocolBuilder
     /** @return array<string, mixed> */
     public function build(Visit $visit, string $language): array
     {
-        $visit->loadMissing(['ticket.project', 'ticket.location', 'technician', 'parts', 'attachments']);
+        $visit->loadMissing(['ticket.project', 'ticket.location', 'technician', 'parts.part', 'attachments']);
         $ticket = $visit->ticket;
         $location = $ticket->location;
 
@@ -108,6 +110,7 @@ class ProtocolBuilder
                 'quantity' => $p->quantity,
                 'serial_removed' => $p->serial_removed,
                 'serial_installed' => $p->serial_installed,
+                'serialized' => (bool) $p->part?->serialized,
             ])->all(),
             'photos' => $visit->attachments->where('kind', 'photo')->sortBy('id')->pluck('uuid')->values()->all(),
             'labels' => self::LABELS[$language],

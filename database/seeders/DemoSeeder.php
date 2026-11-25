@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\Role;
 use App\Models\Location;
+use App\Models\Part;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -47,5 +48,15 @@ class DemoSeeder extends Seeder
             $u->projects()->syncWithoutDetaching([$zas->id]);
         }
         $zakaznik->locations()->syncWithoutDetaching($locations->take(2)->pluck('id'));
+
+        // demo díly
+        foreach ([
+            ['part_number' => 'ZB-LOCK-01', 'name' => 'Zámek schránky', 'serialized' => false],
+            ['part_number' => 'ZB-HINGE-01', 'name' => 'Pant dvířek', 'serialized' => false],
+            ['part_number' => 'ZB-PSU-24', 'name' => 'Zdroj 24 V', 'serialized' => true],
+            ['part_number' => 'ZB-CTRL-02', 'name' => 'Řídicí deska', 'serialized' => true],
+        ] as $p) {
+            Part::updateOrCreate(['part_number' => $p['part_number']], $p + ['project_id' => $zas->id]);
+        }
     }
 }

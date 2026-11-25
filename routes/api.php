@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\ProtocolController;
 use App\Http\Controllers\Api\V1\PushController;
+use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\TicketController;
 use App\Http\Controllers\Api\V1\VisitController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,18 @@ Route::prefix('v1')->group(function () {
         Route::get('admin/users', [UserController::class, 'index']);
         Route::post('admin/users', [UserController::class, 'store']);
         Route::patch('admin/users/{user}', [UserController::class, 'update']);
+
+        Route::get('warehouses', [StockController::class, 'warehouses']);
+        Route::post('warehouses', [StockController::class, 'storeWarehouse']);
+        Route::patch('warehouses/{warehouse}', [StockController::class, 'updateWarehouse']);
+        Route::get('parts', [StockController::class, 'parts']);
+        Route::post('parts', [StockController::class, 'storePart']);
+        Route::patch('parts/{part}', [StockController::class, 'updatePart']);
+        Route::get('stock', [StockController::class, 'levels']);
+        Route::get('stock/movements', [StockController::class, 'movements']);
+        Route::post('stock/movements', [StockController::class, 'storeMovement']);
+        Route::put('stock/minimums', [StockController::class, 'setMinimum']);
+        Route::get('stock/reorder', [StockController::class, 'reorder']);
 
         Route::get('tickets/summary', [TicketController::class, 'summary']);
         Route::get('tickets', [TicketController::class, 'index']);

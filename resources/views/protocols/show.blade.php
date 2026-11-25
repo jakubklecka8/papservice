@@ -58,8 +58,9 @@
             <tr>
                 <td>{{ $p['name'] }}@if($p['part_number']) ({{ $p['part_number'] }})@endif</td>
                 <td>{{ rtrim(rtrim(number_format($p['quantity'], 2, ',', ''), '0'), ',') }}</td>
-                <td>{{ $p['serial_removed'] ?? '—' }}</td>
-                <td>{{ $p['serial_installed'] ?? '—' }}</td>
+                @foreach (['serial_removed', 'serial_installed'] as $sn)
+                    <td>@if ($p[$sn]){{ $p[$sn] }}@elseif (! empty($p['serialized']))<strong style="color:#c0392b">⚠ {{ $l['missing'] ?? '—' }}</strong>@else—@endif</td>
+                @endforeach
             </tr>
         @endforeach
     </table>

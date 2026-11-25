@@ -43,6 +43,14 @@ const T = {
     role: { admin: 'Admin', ekonom: 'Ekonom', spolecnik: 'Společník', dispecer: 'Dispečer', technik: 'Technik', zakaznik: 'Zákazník' },
     readOnly: 'Máš přístup jen pro čtení.', error: 'Chyba', conflict: 'Data návštěvy se změnila – vytvoř protokol znovu.',
     loadFailed: 'Nepodařilo se načíst data.', yes: 'Ano', no: 'Ne',
+    navStock: 'Sklady', stockLevels: 'Stav zásob', stockMoves: 'Pohyby', stockParts: 'Katalog dílů', stockReorder: 'Doplnit',
+    warehouse: 'Sklad', allWarehouses: 'Všechny sklady', whType: { central: 'Centrální', project: 'Projektové', technician: 'Technici' },
+    partNo: 'Kat. číslo', unit: 'Jedn.', serialized: 'S/N povinné', qtyCol: 'Stav', minCol: 'Minimum', setMin: 'Nastavit minimum (0 = zrušit)',
+    receipt: 'Příjem', transfer: 'Převod', adjustment: 'Korekce', consumption: 'Spotřeba',
+    mvType: 'Typ pohybu', from: 'Ze skladu', to: 'Do skladu', quantity: 'Množství', serial: 'Sériové číslo', available: 'K dispozici',
+    adjustHint: 'Korekce: vyplň jen „Ze skladu“ (úbytek) nebo jen „Do skladu“ (přírůstek).',
+    newPart: 'Nový díl', when: 'Kdy', who: 'Kdo', ticketCol: 'Zakázka', nonzero: 'Jen nenulové', pickPart: 'Vyber díl…',
+    suggested: 'Doplnit', noReorder: 'Nic není pod minimem.', missingSn: 'chybí S/N', moved: 'Pohyb uložen',
   },
   pl: {
     title: 'Dyspozytornia', email: 'E-mail', password: 'Hasło', login: 'Zaloguj', loginFailed: 'Błędny e-mail lub hasło.',
@@ -83,6 +91,14 @@ const T = {
     role: { admin: 'Admin', ekonom: 'Ekonomista', spolecnik: 'Wspólnik', dispecer: 'Dyspozytor', technik: 'Technik', zakaznik: 'Klient' },
     readOnly: 'Masz dostęp tylko do odczytu.', error: 'Błąd', conflict: 'Dane wizyty się zmieniły – utwórz protokół ponownie.',
     loadFailed: 'Nie udało się wczytać danych.', yes: 'Tak', no: 'Nie',
+    navStock: 'Magazyny', stockLevels: 'Stany', stockMoves: 'Ruchy', stockParts: 'Katalog części', stockReorder: 'Do uzupełnienia',
+    warehouse: 'Magazyn', allWarehouses: 'Wszystkie magazyny', whType: { central: 'Centralne', project: 'Projektowe', technician: 'Technicy' },
+    partNo: 'Nr kat.', unit: 'Jedn.', serialized: 'Wymagany S/N', qtyCol: 'Stan', minCol: 'Minimum', setMin: 'Ustaw minimum (0 = usuń)',
+    receipt: 'Przyjęcie', transfer: 'Przesunięcie', adjustment: 'Korekta', consumption: 'Zużycie',
+    mvType: 'Typ ruchu', from: 'Z magazynu', to: 'Do magazynu', quantity: 'Ilość', serial: 'Numer seryjny', available: 'Dostępne',
+    adjustHint: 'Korekta: wypełnij tylko „Z magazynu” (ubytek) albo tylko „Do magazynu” (przyrost).',
+    newPart: 'Nowa część', when: 'Kiedy', who: 'Kto', ticketCol: 'Zlecenie', nonzero: 'Tylko niezerowe', pickPart: 'Wybierz część…',
+    suggested: 'Uzupełnić', noReorder: 'Nic nie jest poniżej minimum.', missingSn: 'brak S/N', moved: 'Ruch zapisany',
   },
 };
 
@@ -252,6 +268,7 @@ async function route() {
   if (path === '/new') return renderNewTicket();
   if ((m = path.match(/^\/t\/(\d+)$/))) return renderTicket(m[1]);
   if (path === '/locations') return renderLocations(q);
+  if (path === '/stock') return renderStock(q);
   if (path === '/users' && isAdmin()) return renderUsers();
   location.hash = '#/';
 }
@@ -261,6 +278,7 @@ function shell(active) {
     ['tickets', '#/', '📋', t('navTickets')],
     canCreate() ? ['new', '#/new', '➕', t('navNew')] : null,
     ['locations', '#/locations', '📍', t('navLocations')],
+    has('admin', 'dispecer', 'ekonom', 'spolecnik') ? ['stock', '#/stock', '📦', t('navStock')] : null,
     isAdmin() ? ['users', '#/users', '👥', t('navUsers')] : null,
   ].filter(Boolean);
 
@@ -578,7 +596,8 @@ async function renderTicket(id) {
   const loc = tk.location;
 
   const visitsHtml = (tk.visits || []).map((v) => {
-    const parts = (v.parts || []).map((p) => `<tr><td>${esc(p.name)}${p.part_number ? ` <span class="muted small">(${esc(p.part_number)})</span>` : ''}</td><td>${esc(p.quantity)}</td><td>${esc(p.serial_removed || '—')}</td><td>${esc(p.serial_installed || '—')}</td></tr>`).join('');
+    const sn = (val, missing) => (val ? esc(val) : missing ? `<strong style="color:var(--bad)">⚠ ${esc(t('missingSn'))}</strong>` : '—');
+    const parts = (v.parts || []).map((p) => `<tr><td>${esc(p.name)}${p.part_number ? ` <span class="muted small">(${esc(p.part_number)})</span>` : ''}${p.part_id ? ' <span class="chip draft">📦</span>' : ''}</td><td>${esc(p.quantity)}</td><td>${sn(p.serial_removed, p.missing_serial_removed)}</td><td>${sn(p.serial_installed, p.missing_serial_installed)}</td></tr>`).join('');
     const photos = (v.attachments || []).filter((a) => a.kind === 'photo');
     return `
       <div class="visit" data-visit="${esc(v.uuid)}">
@@ -951,6 +970,216 @@ async function editUser(u, prj) {
     };
   });
   if (ok) { techCache.clear(); toast(t('saved')); renderUsers(); }
+}
+
+
+// ================================================================ sklady
+
+const canStock = () => has('admin', 'dispecer');
+let partsCache = null;
+async function allParts(force = false) {
+  if (!partsCache || force) partsCache = (await api('GET', '/parts?all=1&per_page=2000')).data;
+  return partsCache;
+}
+const qtyFmt = (n) => (n == null ? '—' : Number(n).toLocaleString(locale(), { maximumFractionDigits: 2 }));
+
+async function renderStock(q) {
+  const el = shell('stock');
+  const view = q.get('view') || 'levels';
+  const wh = q.get('wh') || '';
+  const setQ = (c) => {
+    const n = new URLSearchParams(q);
+    Object.entries(c).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k)));
+    location.hash = '#/stock?' + n.toString();
+  };
+
+  let whs;
+  try { whs = (await api('GET', '/warehouses')).data; } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+  const whName = (id) => { const w = whs.find((x) => x.id === id); return w ? `${w.code} · ${w.name}` : '—'; };
+  const whOptions = (sel, empty) => `${empty ? `<option value="">${esc(empty)}</option>` : ''}${['central', 'project', 'technician'].map((tp) => {
+    const list = whs.filter((w) => w.type === tp);
+    return list.length ? `<optgroup label="${esc(t('whType.' + tp))}">${list.map((w) => `<option value="${w.id}" ${String(w.id) === String(sel) ? 'selected' : ''}>${esc(w.code)} · ${esc(w.name)}</option>`).join('')}</optgroup>` : '';
+  }).join('')}`;
+
+  const tabs = [['levels', t('stockLevels')], ['moves', t('stockMoves')], ['parts', t('stockParts')], ['reorder', t('stockReorder')]];
+  el.innerHTML = `
+    <div class="page-head"><h1>${esc(t('navStock'))}</h1>
+      ${canStock() ? `<button class="btn" data-mv="receipt">⬇ ${esc(t('receipt'))}</button><button class="btn" data-mv="transfer">⇄ ${esc(t('transfer'))}</button><button class="btn" data-mv="adjustment">± ${esc(t('adjustment'))}</button>` : ''}
+    </div>
+    <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${k === view ? 'on' : ''}" data-view="${k}">${esc(l)}</button>`).join('')}</div>
+    <div id="stock-body"><div class="spinner"></div></div>`;
+  el.querySelectorAll('[data-view]').forEach((b) => { b.onclick = () => setQ({ view: b.dataset.view }); });
+  el.querySelectorAll('[data-mv]').forEach((b) => { b.onclick = () => movementForm(b.dataset.mv, whs, whOptions, wh); });
+  const body = el.querySelector('#stock-body');
+
+  try {
+    if (view === 'levels') {
+      const params = new URLSearchParams({ nonzero: q.get('all') ? '0' : '1' });
+      if (wh) params.set('warehouse_id', wh);
+      if (q.get('q')) params.set('q', q.get('q'));
+      const res = await api('GET', '/stock?' + params.toString());
+      body.innerHTML = `
+        <div class="filters">
+          <select id="f-wh">${whOptions(wh, t('allWarehouses'))}</select>
+          <input type="search" id="f-q" placeholder="${esc(t('filter'))}" value="${esc(q.get('q') || '')}">
+        </div>
+        ${res.data.length ? `<div class="table-wrap"><table>
+          <thead><tr><th>${esc(t('partNo'))}</th><th>${esc(t('name'))}</th>${wh ? '' : `<th>${esc(t('warehouse'))}</th>`}<th style="text-align:right">${esc(t('qtyCol'))}</th><th style="text-align:right">${esc(t('minCol'))}</th></tr></thead>
+          <tbody>${res.data.map((r, i) => `<tr data-i="${i}" ${r.below_min || r.qty < 0 ? 'style="background:#fff4f2"' : ''}>
+            <td class="num">${esc(r.part.part_number)}</td><td>${esc(r.part.name)}${r.part.serialized ? ' <span class="chip draft">S/N</span>' : ''}</td>
+            ${wh ? '' : `<td>${esc(whName(r.warehouse_id))}</td>`}
+            <td style="text-align:right;font-weight:700;${r.qty < 0 ? 'color:var(--bad)' : ''}">${qtyFmt(r.qty)} ${esc(r.part.unit || '')}</td>
+            <td style="text-align:right">${r.min_qty != null ? qtyFmt(r.min_qty) : '<span class="muted">—</span>'}${r.below_min ? ' ⚠' : ''}</td></tr>`).join('')}</tbody>
+        </table></div>` : '<div class="card empty">—</div>'}`;
+      body.querySelector('#f-wh').onchange = (e) => setQ({ wh: e.target.value });
+      body.querySelector('#f-q').addEventListener('input', debounce((e) => setQ({ q: e.target.value.trim() }), 450));
+      if (canStock()) {
+        body.querySelectorAll('tr[data-i]').forEach((tr) => {
+          tr.onclick = async () => {
+            const r = res.data[Number(tr.dataset.i)];
+            const v = await promptModal(`${t('setMin')} – ${r.part.name} @ ${whName(r.warehouse_id)}`);
+            if (v === undefined || v === null || v === '') return;
+            try { await api('PUT', '/stock/minimums', { warehouse_id: r.warehouse_id, part_id: r.part.id, min_qty: Number(String(v).replace(',', '.')) || 0 }); route(); } catch (e) { toast(errText(e), true); }
+          };
+        });
+      }
+    }
+
+    if (view === 'moves') {
+      const params = new URLSearchParams({ per_page: '100' });
+      if (wh) params.set('warehouse_id', wh);
+      const res = await api('GET', '/stock/movements?' + params.toString());
+      body.innerHTML = `
+        <div class="filters"><select id="f-wh">${whOptions(wh, t('allWarehouses'))}</select></div>
+        ${res.data.length ? `<div class="table-wrap"><table>
+          <thead><tr><th>${esc(t('when'))}</th><th>${esc(t('mvType'))}</th><th>${esc(t('name'))}</th><th style="text-align:right">${esc(t('quantity'))}</th><th>${esc(t('from'))}</th><th>${esc(t('to'))}</th><th>${esc(t('ticketCol'))}</th><th>${esc(t('who'))}</th></tr></thead>
+          <tbody>${res.data.map((m) => `<tr>
+            <td class="small">${esc(fmt(m.created_at))}</td><td>${esc(t(m.type))}</td>
+            <td>${esc(m.part?.name || '')} <span class="muted small">${esc(m.part?.part_number || '')}</span>${m.serial_number ? `<div class="muted small">S/N ${esc(m.serial_number)}</div>` : ''}${m.note ? `<div class="muted small">${esc(m.note)}</div>` : ''}</td>
+            <td style="text-align:right;font-weight:600">${qtyFmt(m.quantity)}</td>
+            <td class="small">${m.from ? esc(m.from.code) : '—'}</td><td class="small">${m.to ? esc(m.to.code) : '—'}</td>
+            <td>${m.ticket ? `<a href="#/t/${m.ticket.id}">${esc(m.ticket.number)}</a>` : ''}</td><td class="small">${esc(m.user?.name || '')}</td></tr>`).join('')}</tbody>
+        </table></div>` : '<div class="card empty">—</div>'}`;
+      body.querySelector('#f-wh').onchange = (e) => setQ({ wh: e.target.value });
+    }
+
+    if (view === 'parts') {
+      const parts = await allParts(true);
+      const prj = await projects();
+      body.innerHTML = `
+        ${canStock() ? `<div class="btn-row" style="margin-bottom:12px"><button class="btn primary" id="btn-part">➕ ${esc(t('newPart'))}</button></div>` : ''}
+        ${parts.length ? `<div class="table-wrap"><table>
+          <thead><tr><th>${esc(t('partNo'))}</th><th>${esc(t('name'))}</th><th>${esc(t('unit'))}</th><th>${esc(t('serialized'))}</th><th>${esc(t('project'))}</th><th></th></tr></thead>
+          <tbody>${parts.map((p, i) => `<tr data-i="${i}"><td class="num">${esc(p.part_number)}</td><td>${esc(p.name)}</td><td>${esc(p.unit)}</td><td>${p.serialized ? '✓' : ''}</td>
+            <td>${esc(prj.find((x) => x.id === p.project_id)?.name || '')}</td><td>${p.is_active ? '' : chip('off', t('inactive'))}</td></tr>`).join('')}</tbody>
+        </table></div>` : '<div class="card empty">—</div>'}`;
+      if (canStock()) {
+        body.querySelector('#btn-part').onclick = () => partForm(null, prj);
+        body.querySelectorAll('tr[data-i]').forEach((tr) => { tr.onclick = () => partForm(parts[Number(tr.dataset.i)], prj); });
+      }
+    }
+
+    if (view === 'reorder') {
+      const res = await api('GET', '/stock/reorder');
+      body.innerHTML = res.data.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>${esc(t('warehouse'))}</th><th>${esc(t('name'))}</th><th style="text-align:right">${esc(t('qtyCol'))}</th><th style="text-align:right">${esc(t('minCol'))}</th><th style="text-align:right">${esc(t('suggested'))}</th></tr></thead>
+        <tbody>${res.data.map((r) => `<tr><td>${esc(r.warehouse.code)} · ${esc(r.warehouse.name)}</td><td>${esc(r.part.name)} <span class="muted small">${esc(r.part.part_number)}</span></td>
+          <td style="text-align:right">${qtyFmt(r.qty)}</td><td style="text-align:right">${qtyFmt(r.min_qty)}</td><td style="text-align:right;font-weight:700">${qtyFmt(r.suggested)}</td></tr>`).join('')}</tbody>
+      </table></div>` : `<div class="card empty">${esc(t('noReorder'))}</div>`;
+    }
+  } catch (e) {
+    body.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`;
+  }
+}
+
+async function movementForm(type, whs, whOptions, defaultWh) {
+  let parts;
+  try { parts = (await allParts()).filter((p) => p.is_active); } catch (e) { toast(errText(e), true); return; }
+  const ok = await modal(`
+    <h3>${esc(t(type))}</h3>
+    <form id="mf">
+      <div class="form-grid">
+        <label class="f full"><span class="req">${esc(t('name'))}</span>
+          <input type="search" id="pf" placeholder="${esc(t('filter'))}" style="margin-bottom:6px">
+          <select name="part_id" required size="6">${parts.map((p) => `<option value="${p.id}" data-txt="${esc((p.part_number + ' ' + p.name).toLowerCase())}">${esc(p.part_number)} · ${esc(p.name)}</option>`).join('')}</select></label>
+        ${type !== 'receipt' ? `<label class="f"><span class="${type === 'transfer' ? 'req' : ''}">${esc(t('from'))}</span><select name="from_warehouse_id">${whOptions(type === 'transfer' ? defaultWh : '', '—')}</select></label>` : ''}
+        <label class="f"><span class="${type === 'adjustment' ? '' : 'req'}">${esc(t('to'))}</span><select name="to_warehouse_id">${whOptions(type === 'receipt' ? defaultWh : '', '—')}</select></label>
+        <label class="f"><span class="req">${esc(t('quantity'))}</span><input type="number" name="quantity" min="0.01" step="0.01" value="1" required></label>
+        <div class="f muted small" id="avail" style="align-self:end"></div>
+        <label class="f"><span>${esc(t('serial'))}</span><input type="text" name="serial_number"></label>
+        <label class="f"><span>${esc(t('note'))}</span><input type="text" name="note"></label>
+      </div>
+      ${type === 'adjustment' ? `<div class="banner warn small">${esc(t('adjustHint'))}</div>` : ''}
+      <div class="banner err" id="merr" hidden></div>
+      <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div>
+    </form>`, (d, close) => {
+    const f = d.querySelector('#mf');
+    const formUuid = uuid();
+    d.querySelector('#pf').oninput = (e) => {
+      const v = e.target.value.toLowerCase();
+      [...f.part_id.options].forEach((o) => { o.hidden = v && !o.dataset.txt.includes(v); });
+    };
+    const showAvail = async () => {
+      const box = d.querySelector('#avail');
+      const from = f.from_warehouse_id?.value;
+      if (!from || !f.part_id.value) { box.textContent = ''; return; }
+      try {
+        const r = await api('GET', `/stock?warehouse_id=${from}&part_id=${f.part_id.value}`);
+        box.textContent = `${t('available')}: ${qtyFmt(r.data[0]?.qty ?? 0)}`;
+      } catch { box.textContent = ''; }
+    };
+    f.part_id.onchange = showAvail;
+    if (f.from_warehouse_id) f.from_warehouse_id.onchange = showAvail;
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const num = (v) => (v ? Number(v) : null);
+      try {
+        await api('POST', '/stock/movements', {
+          uuid: formUuid, type, part_id: Number(f.part_id.value), quantity: Number(f.quantity.value),
+          from_warehouse_id: num(f.from_warehouse_id?.value), to_warehouse_id: num(f.to_warehouse_id.value),
+          serial_number: f.serial_number.value.trim() || null, note: f.note.value.trim() || null,
+        });
+        close(true);
+      } catch (ex) {
+        const err = d.querySelector('#merr');
+        err.textContent = errText(ex);
+        err.hidden = false;
+      }
+    };
+  });
+  if (ok) { toast(t('moved')); route(); }
+}
+
+async function partForm(p, prj) {
+  const cur = p || { unit: 'ks', serialized: false, is_active: true };
+  const ok = await modal(`
+    <h3>${esc(p ? p.part_number : t('newPart'))}</h3>
+    <form id="pf2"><div class="form-grid">
+      <label class="f"><span class="req">${esc(t('partNo'))}</span><input type="text" name="part_number" required value="${esc(cur.part_number || '')}"></label>
+      <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(cur.name || '')}"></label>
+      <label class="f"><span>${esc(t('unit'))}</span><input type="text" name="unit" value="${esc(cur.unit || 'ks')}"></label>
+      <label class="f"><span>${esc(t('project'))}</span><select name="project_id"><option value="">—</option>${prj.map((x) => `<option value="${x.id}" ${x.id === cur.project_id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('serialized'))}</span><select name="serialized"><option value="0">${esc(t('no'))}</option><option value="1" ${cur.serialized ? 'selected' : ''}>${esc(t('yes'))}</option></select></label>
+      <label class="f"><span>${esc(t('active'))}</span><select name="is_active"><option value="1">${esc(t('yes'))}</option><option value="0" ${cur.is_active ? '' : 'selected'}>${esc(t('no'))}</option></select></label>
+      <label class="f full"><span>${esc(t('note'))}</span><textarea name="note">${esc(cur.note || '')}</textarea></label>
+    </div>
+    <div class="banner err" id="perr" hidden></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`, (d, close) => {
+    const f = d.querySelector('#pf2');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const body = {
+        part_number: f.part_number.value.trim(), name: f.name.value.trim(), unit: f.unit.value.trim() || 'ks',
+        project_id: f.project_id.value ? Number(f.project_id.value) : null, serialized: f.serialized.value === '1',
+        is_active: f.is_active.value === '1', note: f.note.value.trim() || null,
+      };
+      try {
+        if (p) await api('PATCH', `/parts/${p.id}`, body); else await api('POST', '/parts', body);
+        close(true);
+      } catch (ex) { const err = d.querySelector('#perr'); err.textContent = errText(ex); err.hidden = false; }
+    };
+  });
+  if (ok) { partsCache = null; toast(t('saved')); route(); }
 }
 
 // ================================================================ start

@@ -37,6 +37,8 @@ const T = {
     pushDenied: 'Upozornění jsou v prohlížeči zakázaná. Povol je v nastavení telefonu pro tuto stránku.',
     pushIos: 'Na iPhonu fungují upozornění jen po přidání na plochu (Sdílet → Přidat na plochu).',
     pushEnabled: 'Upozornění zapnuta', later: 'Později',
+    inStock: 'u mě na skladě', fromCatalog: 'Vyber z katalogu nebo napiš název', snRequired: 'díl vyžaduje S/N',
+    snMissingWarn: 'Chybí sériové číslo u dílu:',
   },
   pl: {
     appName: 'PAP Technik',
@@ -74,6 +76,8 @@ const T = {
     pushDenied: 'Powiadomienia są zablokowane w przeglądarce. Zezwól na nie w ustawieniach telefonu dla tej strony.',
     pushIos: 'Na iPhonie powiadomienia działają tylko po dodaniu do ekranu głównego (Udostępnij → Do ekranu początkowego).',
     pushEnabled: 'Powiadomienia włączone', later: 'Później',
+    inStock: 'mam w magazynie', fromCatalog: 'Wybierz z katalogu lub wpisz nazwę', snRequired: 'część wymaga S/N',
+    snMissingWarn: 'Brak numeru seryjnego części:',
   },
 };
 

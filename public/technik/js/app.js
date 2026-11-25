@@ -12,7 +12,7 @@ import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -480,6 +480,9 @@ async function renderVisit(id) {
   setTop((ticket.number || '#' + id) + ' · ' + t('visit'), true);
 
   const draftKey = 'draft:' + id;
+  let { cached: catalog, refresh: catalogRefresh } = await loadCatalog();
+  catalogRefresh.then((c) => { catalog = c; });
+  const catById = (pid) => catalog.parts.find((x) => x.id === pid);
 
   const persist = async () => {
     if (readonly) return;
@@ -500,6 +503,13 @@ async function renderVisit(id) {
     const m = Math.round((new Date(d.departed_at) - new Date(d.arrived_at)) / 60000);
     return m >= 0 ? m : '⚠';
   };
+
+  function partInfo(p) {
+    const c = p.part_id ? catById(p.part_id) : null;
+    if (!c) return '';
+    const qty = catalog.stock[c.id] ?? 0;
+    return `📦 ${esc(c.part_number)} · ${esc(t('inStock'))}: <strong style="${qty <= 0 ? 'color:var(--bad)' : ''}">${qty}</strong> ${esc(c.unit || '')}${c.serialized ? ` · <strong>${esc(t('snRequired'))}</strong>` : ''}`;
+  }
 
   const draw = async () => {
     const queued = await pendingFor(id);
@@ -554,7 +564,8 @@ async function renderVisit(id) {
         ${d.parts.map((p, i) => `
           <div class="part" data-i="${i}">
             <div class="part-head"><span>${esc(t('part'))} ${i + 1}</span>${readonly ? '' : `<button class="btn small danger" data-rm="${i}">${esc(t('remove'))}</button>`}</div>
-            <label class="field"><span class="req">${esc(t('partName'))}</span><input type="text" data-p="name" value="${esc(p.name)}" ${dis}></label>
+            <label class="field"><span class="req">${esc(t('partName'))}</span><input type="text" data-p="name" list="catalog-list" placeholder="${esc(t('fromCatalog'))}" value="${esc(p.part_id && catById(p.part_id) ? catLabel(catById(p.part_id)) : p.name)}" ${dis}></label>
+            <div class="small muted" data-info style="margin:-6px 0 8px">${partInfo(p)}</div>
             <div class="part-grid">
               <label class="field"><span>${esc(t('partNumber'))}</span><input type="text" data-p="part_number" value="${esc(p.part_number || '')}" ${dis}></label>
               <label class="field"><span>${esc(t('qty'))}</span><input type="number" inputmode="decimal" min="0" step="0.01" data-p="quantity" value="${p.quantity ?? 1}" ${dis}></label>
@@ -563,7 +574,8 @@ async function renderVisit(id) {
             </div>
           </div>`).join('')}
       </div>
-      ${readonly ? '' : `<button class="btn" id="add-part" style="width:100%">${esc(t('addPart'))}</button>`}
+      ${readonly ? '' : `<button class="btn" id="add-part" style="width:100%">${esc(t('addPart'))}</button>
+      <datalist id="catalog-list">${catalog.parts.map((c) => `<option value="${esc(catLabel(c))}"></option>`).join('')}</datalist>`}
 
       <div class="section-title">${esc(t('photos'))}</div>
       <div class="photos" id="photos">
@@ -624,7 +636,22 @@ async function renderVisit(id) {
       for (const el of box.querySelectorAll('[data-p]')) {
         el.addEventListener('input', () => {
           const k = el.dataset.p;
-          d.parts[i][k] = k === 'quantity' ? (el.value === '' ? 1 : Number(el.value)) : el.value;
+          if (k === 'name') {
+            const hit = catalog.parts.find((c) => catLabel(c) === el.value);
+            if (hit) {
+              d.parts[i].part_id = hit.id;
+              d.parts[i].name = hit.name;
+              d.parts[i].part_number = hit.part_number;
+              const pn = box.querySelector('[data-p=part_number]');
+              if (pn) pn.value = hit.part_number;
+            } else {
+              d.parts[i].part_id = null;
+              d.parts[i].name = el.value;
+            }
+            box.querySelector('[data-info]').innerHTML = partInfo(d.parts[i]);
+          } else {
+            d.parts[i][k] = k === 'quantity' ? (el.value === '' ? 1 : Number(el.value)) : el.value;
+          }
           persist();
           save();
         });
@@ -638,7 +665,7 @@ async function renderVisit(id) {
       };
     }
     $app.querySelector('#add-part').onclick = async () => {
-      d.parts.push({ uuid: uuid(), name: '', part_number: '', quantity: 1, serial_removed: '', serial_installed: '' });
+      d.parts.push({ uuid: uuid(), part_id: null, name: '', part_number: '', quantity: 1, serial_removed: '', serial_installed: '' });
       await persist();
       await draw();
       const last = $app.querySelectorAll('.part');
@@ -680,7 +707,9 @@ async function renderVisit(id) {
         toast(t('missing') + ' ' + missing.join(', '), true, 5000);
         return;
       }
-      if (!(await confirmSheet(t('confirmSubmit')))) return;
+      const noSn = d.parts.filter((p) => p.part_id && catById(p.part_id)?.serialized && (!p.serial_installed || !p.serial_removed));
+      const warn = noSn.length ? `⚠ ${t('snMissingWarn')} ${noSn.map((p) => p.name).join(', ')}\n\n` : '';
+      if (!(await confirmSheet(warn + t('confirmSubmit')))) return;
 
       await save.flush();
       await enqueue({ type: 'submit', key: d.uuid, ticketId: Number(id) });
@@ -695,6 +724,26 @@ async function renderVisit(id) {
   await draw();
 }
 
+/** Katalog dílů a stav mého skladu – drží se v telefonu, aby šel výběr i offline */
+async function loadCatalog() {
+  const cached = (await kv.get('catalog')) || { parts: [], stock: {} };
+  const refresh = (async () => {
+    try {
+      const [parts, stock] = await Promise.all([api.catalog(), api.myStock()]);
+      const map = {};
+      for (const r of stock.data) map[r.part.id] = r.qty;
+      const fresh = { parts: parts.data.map((p) => ({ id: p.id, part_number: p.part_number, name: p.name, unit: p.unit, serialized: p.serialized })), stock: map };
+      await kv.set('catalog', fresh);
+      return fresh;
+    } catch {
+      return cached;
+    }
+  })();
+  return cached.parts.length ? { cached, refresh } : { cached: await refresh, refresh };
+}
+
+const catLabel = (p) => `${p.part_number} · ${p.name}`;
+
 function visitPayload(d) {
   return {
     arrived_at: d.arrived_at,
@@ -706,7 +755,7 @@ function visitPayload(d) {
     test_note: d.test_note || null,
     instruction_ref: d.instruction_ref || null,
     parts: d.parts.filter((p) => p.name && p.name.trim()).map((p) => ({
-      uuid: p.uuid, name: p.name.trim(), part_number: p.part_number || null, quantity: p.quantity ?? 1,
+      uuid: p.uuid, part_id: p.part_id || null, name: p.name.trim(), part_number: p.part_number || null, quantity: p.quantity ?? 1,
       serial_removed: p.serial_removed || null, serial_installed: p.serial_installed || null,
     })),
     client_updated_at: new Date().toISOString(),

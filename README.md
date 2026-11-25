@@ -73,6 +73,16 @@ Adresa `/dispecink/` (rozcestník je na `/`). CZ/PL.
 - uživatelé (jen admin): role, projekty, provozovny zákazníka, jazyk, deaktivace
 - společník a ekonom mají jen čtení
 
+## Sklady (M4)
+
+V dispečinku **Sklady**. Sklady Zásilkovna, Allegro, AmRest, BK REX, PLK REX a sklad každého technika (zakládá se sám).
+
+- stav zásob = součet pohybů (příjem, převod, korekce, spotřeba), nikde se neukládá ručně
+- převod nepustí víc, než je na skladě; opakované odeslání formuláře nic nezdvojí
+- technik v aplikaci vybírá díl z katalogu a vidí, kolik ho má u sebe; po odeslání návštěvy se spotřeba odečte z jeho skladu (po vrácení a novém odeslání se přepočítá)
+- díly s povinným S/N: zakázka i protokol označí chybějící číslo
+- minima na skladech a seznam „Doplnit“ (návrhy doplnění zásob)
+
 ## Zákaznický portál
 
 Adresa `/zakaznik/`. CZ/PL, funguje i v mobilu. Účet zákazníka založí admin v Uživatelích (role Zákazník + jeho provozovny).

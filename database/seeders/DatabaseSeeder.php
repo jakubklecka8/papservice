@@ -13,5 +13,7 @@ class DatabaseSeeder extends Seeder
         if (! app()->isProduction() && config('pap.seed_demo')) {
             $this->call(DemoSeeder::class);
         }
+
+        $this->call(WarehouseSeeder::class);
     }
 }
