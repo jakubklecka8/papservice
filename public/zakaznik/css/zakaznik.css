@@ -1,0 +1,22 @@
+/* Zákaznický portál – nad styly dispečinku, jen jednodušší rozvržení s horní lištou */
+.top { background: var(--brand); color: #fff; }
+.top-in { max-width: 980px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 10px 16px; flex-wrap: wrap; }
+.top .brand { padding: 0; flex: 1; min-width: 180px; }
+.top a.navl { color: #dce8f4; text-decoration: none; padding: 6px 10px; border-radius: 8px; font-weight: 600; }
+.top a.navl.on, .top a.navl:hover { background: rgba(255,255,255,.15); color: #fff; }
+.top .who { font-size: 13px; color: #cfe0f1; }
+.top .who button { background: none; border: 0; color: #fff; text-decoration: underline; cursor: pointer; padding: 0 0 0 6px; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px 60px; }
+.req-list .card { cursor: pointer; display: block; text-decoration: none; color: inherit; }
+.req-list .card:hover { border-color: #b9cde2; }
+.req-head { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.timeline { list-style: none; padding: 0; margin: 0; }
+.timeline li { position: relative; padding: 0 0 14px 26px; }
+.timeline li::before { content: ""; position: absolute; left: 6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: #c9d2dc; }
+.timeline li::after { content: ""; position: absolute; left: 10px; top: 18px; bottom: 0; width: 2px; background: #e2e8f0; }
+.timeline li:last-child::after { display: none; }
+.timeline li.done::before { background: var(--ok); }
+.timeline li.now::before { background: var(--brand-2); box-shadow: 0 0 0 4px rgba(22,103,171,.2); }
+.timeline .when { font-size: 13px; color: var(--muted); }
+.photo-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+.photo-pick .photo-add { display: grid; place-items: center; aspect-ratio: 1; border: 2px dashed #b8c3cf; border-radius: 8px; color: var(--muted); font-weight: 600; cursor: pointer; text-align: center; font-size: 13px; }

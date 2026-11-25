@@ -73,6 +73,14 @@ Adresa `/dispecink/` (rozcestník je na `/`). CZ/PL.
 - uživatelé (jen admin): role, projekty, provozovny zákazníka, jazyk, deaktivace
 - společník a ekonom mají jen čtení
 
+## Zákaznický portál
+
+Adresa `/zakaznik/`. CZ/PL, funguje i v mobilu. Účet zákazníka založí admin v Uživatelích (role Zákazník + jeho provozovny).
+
+- nový požadavek pro vlastní provozovnu, s fotkami (zmenšují se v prohlížeči)
+- seznam otevřených a uzavřených požadavků, průběh (přijato → přiděleno → práce → hotovo → uzavřeno)
+- schválený protokol a fotky, které dispečer označil pro zákazníka; možnost dofotit k otevřenému požadavku
+
 ## Aplikace pro techniky (PWA)
 
 Adresa `/technik/` (z `/` se přesměruje). V telefonu otevřít v Chrome/Safari a dát **Přidat na plochu**.

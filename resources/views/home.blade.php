@@ -20,6 +20,7 @@
   <img src="/technik/icons/icon-192.png" alt="">
   <h1>PAP Service</h1>
   <a href="/dispecink/">🖥️ Dispečink / Dyspozytornia<span>zakázky, přidělování, schvalování, správa</span></a>
+  <a href="/zakaznik/">🏢 Zákaznický portál / Portal klienta<span>zadání požadavku, stav, protokoly</span></a>
   <a href="/technik/">📱 Aplikace technika / Aplikacja technika<span>do telefonu, funguje i offline</span></a>
 </div>
 </body>
