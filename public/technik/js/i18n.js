@@ -1,0 +1,79 @@
+// Texty aplikace – čeština a polština.
+
+const T = {
+  cs: {
+    appName: 'PAP Technik',
+    email: 'E-mail', password: 'Heslo', login: 'Přihlásit', loginFailed: 'Špatný e-mail nebo heslo.',
+    notTechnician: 'Tento účet nemá roli technika.',
+    myTickets: 'Moje zakázky', refresh: 'Obnovit', noTickets: 'Nemáš žádné otevřené zakázky.',
+    offline: 'Jsi offline – změny se odešlou, až bude signál.', offlineCached: 'Offline – zobrazuji uložená data.',
+    loadFailed: 'Nepodařilo se načíst data.',
+    due: 'Termín', priority: 'Priorita', reported: 'Nahlášeno',
+    prio: { low: 'Nízká', normal: 'Normální', high: 'Vysoká', urgent: 'Urgentní' },
+    status: { new: 'Nový', assigned: 'Přidělený', in_progress: 'Probíhá', waiting: 'Čeká', completed: 'Dokončený', closed: 'Uzavřený', cancelled: 'Zrušený' },
+    location: 'Provozovna', address: 'Adresa', navigate: 'Navigovat', call: 'Volat', reporter: 'Nahlásil',
+    description: 'Popis závady', history: 'Historie',
+    startVisit: 'Zahájit návštěvu', continueVisit: 'Pokračovat v návštěvě', viewVisit: 'Zobrazit návštěvu',
+    setWaiting: 'Čeká (díl, přístup…)', setInProgress: 'Znovu probíhá', waitingNote: 'Na co se čeká?',
+    submittedInfo: 'Návštěva je odeslaná ke schválení dispečerovi.',
+    returnedInfo: 'Dispečer vrátil návštěvu k doplnění:',
+    visit: 'Návštěva', arrived: 'Příjezd', departed: 'Odjezd', now: 'Teď', km: 'Kilometry', minutes: 'Čas na místě (min)',
+    work: 'Provedené práce', repair: 'Popis opravy / příčina', test: 'Výsledek testu',
+    testOk: 'OK', testFailed: 'Nevyhověl', testNa: 'Nedělal se', testNote: 'Poznámka k testu',
+    instruction: 'Použitý návod', parts: 'Použité díly', addPart: '+ Přidat díl', part: 'Díl', partName: 'Název',
+    partNumber: 'Katalogové č.', qty: 'Množství', snRemoved: 'S/N demontováno', snInstalled: 'S/N namontováno', remove: 'Odebrat',
+    photos: 'Fotky', addPhoto: '+ Fotka', waitingUpload: 'čeká',
+    save: 'Uložit', saved: 'Uloženo', submit: 'Odeslat ke schválení', confirmSubmit: 'Odeslat návštěvu ke schválení? Potom už ji nepůjde měnit.',
+    missing: 'Vyplň povinné údaje:', readonly: 'Návštěva je odeslaná – jen pro čtení.',
+    sync: 'Synchronizace', pendingN: (n) => `${n} čeká na odeslání`, failedN: (n) => `${n} chyb`,
+    syncOk: 'Vše odesláno', retry: 'Zkusit znovu', discard: 'Zahodit', sendNow: 'Odeslat teď',
+    conflict: 'Návštěva už byla na serveru uzavřená – změna se neuložila.',
+    menu: 'Menu', language: 'Jazyk', logout: 'Odhlásit', logoutPending: 'Ve frontě jsou neodeslané změny. Opravdu odhlásit? Změny se ztratí.',
+    sessionExpired: 'Přihlášení vypršelo – přihlas se znovu. Neodeslané změny zůstanou uložené.',
+    cancel: 'Zrušit', ok: 'OK', close: 'Zavřít', version: 'Verze',
+    types: { visit: 'Návštěva', submit: 'Odeslání', status: 'Stav', photo: 'Fotka' },
+  },
+  pl: {
+    appName: 'PAP Technik',
+    email: 'E-mail', password: 'Hasło', login: 'Zaloguj', loginFailed: 'Błędny e-mail lub hasło.',
+    notTechnician: 'To konto nie ma roli technika.',
+    myTickets: 'Moje zlecenia', refresh: 'Odśwież', noTickets: 'Nie masz otwartych zleceń.',
+    offline: 'Jesteś offline – zmiany zostaną wysłane po odzyskaniu zasięgu.', offlineCached: 'Offline – wyświetlam zapisane dane.',
+    loadFailed: 'Nie udało się wczytać danych.',
+    due: 'Termin', priority: 'Priorytet', reported: 'Zgłoszono',
+    prio: { low: 'Niski', normal: 'Normalny', high: 'Wysoki', urgent: 'Pilny' },
+    status: { new: 'Nowe', assigned: 'Przydzielone', in_progress: 'W toku', waiting: 'Oczekuje', completed: 'Zakończone', closed: 'Zamknięte', cancelled: 'Anulowane' },
+    location: 'Lokalizacja', address: 'Adres', navigate: 'Nawiguj', call: 'Zadzwoń', reporter: 'Zgłaszający',
+    description: 'Opis usterki', history: 'Historia',
+    startVisit: 'Rozpocznij wizytę', continueVisit: 'Kontynuuj wizytę', viewVisit: 'Pokaż wizytę',
+    setWaiting: 'Oczekuje (część, dostęp…)', setInProgress: 'Ponownie w toku', waitingNote: 'Na co czekamy?',
+    submittedInfo: 'Wizyta wysłana do zatwierdzenia przez dyspozytora.',
+    returnedInfo: 'Dyspozytor zwrócił wizytę do uzupełnienia:',
+    visit: 'Wizyta', arrived: 'Przyjazd', departed: 'Wyjazd', now: 'Teraz', km: 'Kilometry', minutes: 'Czas na miejscu (min)',
+    work: 'Wykonane prace', repair: 'Opis naprawy / przyczyna', test: 'Wynik testu',
+    testOk: 'OK', testFailed: 'Negatywny', testNa: 'Nie wykonano', testNote: 'Uwagi do testu',
+    instruction: 'Użyta instrukcja', parts: 'Użyte części', addPart: '+ Dodaj część', part: 'Część', partName: 'Nazwa',
+    partNumber: 'Nr katalogowy', qty: 'Ilość', snRemoved: 'S/N zdemontowany', snInstalled: 'S/N zamontowany', remove: 'Usuń',
+    photos: 'Zdjęcia', addPhoto: '+ Zdjęcie', waitingUpload: 'czeka',
+    save: 'Zapisz', saved: 'Zapisano', submit: 'Wyślij do zatwierdzenia', confirmSubmit: 'Wysłać wizytę do zatwierdzenia? Później nie będzie można jej zmienić.',
+    missing: 'Uzupełnij wymagane pola:', readonly: 'Wizyta wysłana – tylko do odczytu.',
+    sync: 'Synchronizacja', pendingN: (n) => `${n} czeka na wysłanie`, failedN: (n) => `${n} błędów`,
+    syncOk: 'Wszystko wysłane', retry: 'Spróbuj ponownie', discard: 'Odrzuć', sendNow: 'Wyślij teraz',
+    conflict: 'Wizyta jest już zamknięta na serwerze – zmiana nie została zapisana.',
+    menu: 'Menu', language: 'Język', logout: 'Wyloguj', logoutPending: 'W kolejce są niewysłane zmiany. Na pewno wylogować? Zmiany zostaną utracone.',
+    sessionExpired: 'Sesja wygasła – zaloguj się ponownie. Niewysłane zmiany pozostaną zapisane.',
+    cancel: 'Anuluj', ok: 'OK', close: 'Zamknij', version: 'Wersja',
+    types: { visit: 'Wizyta', submit: 'Wysłanie', status: 'Status', photo: 'Zdjęcie' },
+  },
+};
+
+let lang = 'cs';
+
+export function setLang(l) {
+  lang = T[l] ? l : 'cs';
+  document.documentElement.lang = lang;
+}
+export function getLang() { return lang; }
+export function t(key) {
+  return key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), T[lang]) ?? key;
+}

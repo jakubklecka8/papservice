@@ -1,0 +1,12 @@
+DirectoryIndex index.html
+
+<IfModule mod_headers.c>
+    <FilesMatch "(sw\.js|index\.html|manifest\.webmanifest)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    <FilesMatch "sw\.js$">
+        Header set Service-Worker-Allowed "/technik/"
+    </FilesMatch>
+</IfModule>
+
+AddType application/manifest+json .webmanifest

@@ -60,6 +60,17 @@ Přihlášení: `POST /api/v1/auth/login {email, password, device_name}` vrátí
 | PATCH | `/attachments/{uuid} {customer_visible}` | dispečer |
 | GET | `/projects`, `/locations`, `/technicians` | číselníky |
 
+## Aplikace pro techniky (PWA)
+
+Adresa `/technik/` (z `/` se přesměruje). V telefonu otevřít v Chrome/Safari a dát **Přidat na plochu**.
+
+- přihlášení technika, seznam přidělených otevřených zakázek, detail s navigací a voláním
+- záznam návštěvy: příjezd a odjezd, km, práce, oprava, test, návod, díly se S/N, fotky (zmenšené v telefonu na 1600 px)
+- stav „čeká“ s poznámkou, odeslání ke schválení
+- **offline:** vše se ukládá do telefonu (IndexedDB) a odesílá frontou, až je signál. Aplikace se otevře i bez signálu.
+- CZ/PL podle profilu uživatele, přepínání v menu
+- zdrojáky jsou v `public/technik/` (čisté JS, bez buildu)
+
 ## Další krok
 
 - **Import (krok 03):** do `.env` doplnit `LEGACY_DB_*` a spustit `php artisan pap:import-legacy --inventory`. Mapování se dopíše podle exportu struktury od Piotra.
