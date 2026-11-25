@@ -3,7 +3,7 @@ name: Test a nasazení
 # develop -> testovací subdoména, main -> produkce
 # Každé GitHub "environment" (test / production) má vlastní secrets a variables:
 #   secrets: FTP_SERVER, FTP_USERNAME, FTP_PASSWORD, PAP_MAINTENANCE_TOKEN
-#   vars:    FTP_DIR (např. /test.servicepap.com/), APP_URL (např. https://test.servicepap.com)
+#   vars:    FTP_DIR (např. /_sub/aplikace/), APP_URL (např. https://aplikace.servicepap.com)
 
 on:
   push:
@@ -36,36 +36,10 @@ jobs:
           php artisan key:generate
           php artisan test
 
-  # Hotový balík i s vendor/ ke stažení (Actions → běh → Artifacts) pro ruční nahrání FileZillou
-  balik:
-    needs: test
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: mbstring, intl, gd, zip
-          coverage: none
-
-      - name: Composer install (produkční)
-        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
-
-      - name: Vyčistit
-        run: rm -rf .git .github tests node_modules
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pap-service-${{ github.ref_name }}
-          path: .
-          include-hidden-files: true
-          retention-days: 14
-
   deploy:
     needs: test
-    if: github.event_name != 'pull_request'
+    # Produkce (main) se zapne až po pilotu – nastavením repo variable DEPLOY_PRODUCTION=true
+    if: github.event_name != 'pull_request' && (github.ref_name == 'develop' || vars.DEPLOY_PRODUCTION == 'true')
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'test' }}
     steps:
@@ -80,34 +54,47 @@ jobs:
       - name: Composer install (produkční)
         run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
 
-      # Bez SSH: nahrajeme hotový balík včetně vendor/. Akce si pamatuje stav
-      # na serveru (.ftp-deploy-sync-state.json) a příště nahraje jen změny.
-      - name: Nahrání přes FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      # Jeden zip místo 16 tisíc souborů – FTP na Webglobe je po jednotlivých souborech hodiny
+      - name: Sestavit release.zip
+        run: |
+          rm -rf .git .github tests node_modules
+          rm -f bootstrap/cache/config.php bootstrap/cache/routes-*.php bootstrap/cache/events.php
+          zip -rq /tmp/release.zip . -x '.env' 'storage/logs/*.log' 'storage/framework/views/*.php'
+          ls -lh /tmp/release.zip
+
+      - name: Balík ke stažení (pro ruční nahrání)
+        uses: actions/upload-artifact@v4
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          server-dir: ${{ vars.FTP_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            .github/**
-            node_modules/**
-            tests/**
-            .env
-            .env.*
-            database/*.sqlite
-            storage/app/**
-            storage/logs/**
-            storage/framework/cache/**
-            storage/framework/sessions/**
-            storage/framework/views/**
-            storage/framework/testing/**
-            bootstrap/cache/config.php
-            bootstrap/cache/routes-*.php
-            bootstrap/cache/events.php
+          name: pap-service-${{ github.ref_name }}
+          path: /tmp/release.zip
+          retention-days: 14
+
+      - name: Nahrání přes FTP (zip + rozbalovač)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_DIR: ${{ vars.FTP_DIR }}
+        run: |
+          set -e
+          DIR="/${FTP_DIR#/}"; DIR="${DIR%/}/"
+          URL="ftp://${FTP_SERVER}${DIR}"
+          up() {
+            curl --fail -sS --ssl-reqd --ftp-create-dirs --retry 3 --retry-delay 5 \
+              --user "${FTP_USERNAME}:${FTP_PASSWORD}" -T "$1" "${URL}$2"
+            echo "OK $2"
+          }
+          up .htaccess .htaccess
+          up public/.htaccess public/.htaccess
+          up public/_unpack.php public/_unpack.php
+          up /tmp/release.zip _deploy/release.zip
+
+      - name: Rozbalení na serveru
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          TOKEN: ${{ secrets.PAP_MAINTENANCE_TOKEN }}
+        run: |
+          curl --fail-with-body -sS --max-time 300 -X POST -H "X-Maintenance-Token: $TOKEN" "$APP_URL/_unpack.php"
 
       - name: Údržba po nasazení (adresáře, migrace, cache)
         env:
@@ -115,7 +102,7 @@ jobs:
           TOKEN: ${{ secrets.PAP_MAINTENANCE_TOKEN }}
         run: |
           set -e
-          for action in optimize-clear setup migrate optimize; do
+          for action in setup migrate optimize; do
             echo "== $action"
             curl --fail-with-body -sS -X POST -H "X-Maintenance-Token: $TOKEN" "$APP_URL/_maint/$action"
             echo
