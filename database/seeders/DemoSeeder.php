@@ -49,6 +49,11 @@ class DemoSeeder extends Seeder
         }
         $zakaznik->locations()->syncWithoutDetaching($locations->take(2)->pluck('id'));
 
+        // univerzální testovací účet – všechny role, všechny projekty, dvě provozovny jako zákazník
+        $vse = $make('vse@demo.test', 'Demo Všechno', [Role::Admin, Role::Dispecer, Role::Technik, Role::Zakaznik]);
+        $vse->projects()->syncWithoutDetaching(Project::pluck('id'));
+        $vse->locations()->syncWithoutDetaching($locations->take(2)->pluck('id'));
+
         // demo díly
         foreach ([
             ['part_number' => 'ZB-LOCK-01', 'name' => 'Zámek schránky', 'serialized' => false],
