@@ -356,7 +356,7 @@ async function renderDetail(id) {
         </div>`}
         <div class="card">
           <h2>${esc(t('protocol'))}</h2>
-          ${protocols.length ? protocols.map((p) => `<button class="btn primary" data-proto="${esc(p.html_url)}">📄 ${esc(t('openProtocol'))} (${esc(p.language.toUpperCase())})</button>`).join(' ') : `<p class="muted" style="margin:0">${esc(t('noProtocol'))}</p>`}
+          ${protocols.length ? protocols.map((p) => `<button class="btn primary" data-proto="${esc(p.pdf_url)}">📄 ${esc(t('openProtocol'))} (${p.template === 'm4b' ? 'M4B' : esc(p.language.toUpperCase())}) · PDF</button>`).join(' ') : `<p class="muted" style="margin:0">${esc(t('noProtocol'))}</p>`}
         </div>
       </div>
     </div>`;

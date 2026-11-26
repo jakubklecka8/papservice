@@ -145,3 +145,14 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--brand-2); o
 .spinner { width: 28px; height: 28px; border: 3px solid #cbd5e1; border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; margin: 30px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .sheet p { white-space: pre-line; }
+
+/* --- podpisy --- */
+.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sig-box { border: 2px dashed #b8c3cf; border-radius: 10px; min-height: 96px; display: grid; place-items: center; background: #fafbfc; cursor: pointer; text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; padding: 6px; }
+.sig-box.done { border-style: solid; border-color: var(--ok); background: #fff; }
+.sig-box img { max-width: 100%; max-height: 80px; display: block; }
+.sig-label { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.sig-wrap { position: relative; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+.sig-canvas { display: block; touch-action: none; }
+.sig-hint { position: absolute; inset: auto 0 10px; text-align: center; color: #b8c3cf; font-size: 13px; pointer-events: none; }
+@media (max-width: 380px) { .sig-grid { grid-template-columns: 1fr; } }

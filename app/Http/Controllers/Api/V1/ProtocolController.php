@@ -9,10 +9,13 @@ use App\Http\Resources\ProtocolResource;
 use App\Models\Protocol;
 use App\Models\Visit;
 use App\Services\ProtocolBuilder;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ProtocolController extends Controller
@@ -79,7 +82,62 @@ class ProtocolController extends Controller
     {
         $this->authorizeView($request, $protocol);
 
-        return response()->view('protocols.show', ['protocol' => $protocol, 'd' => $protocol->data, 'l' => $protocol->data['labels']]);
+        return response()->view(self::viewName($protocol), self::viewData($protocol));
+    }
+
+    /**
+     * PDF vygenerované na serveru (dompdf, font DejaVu – česká i polská diakritika).
+     * Schválený protokol se uloží do storage a příště se vrací uložený soubor.
+     */
+    public function pdf(Request $request, Protocol $protocol): Response
+    {
+        $this->authorizeView($request, $protocol);
+
+        $path = 'protocols/'.$protocol->id.'.pdf';
+        $disk = Storage::disk('local');
+        if ($protocol->isApproved() && $disk->exists($path)) {
+            $pdf = $disk->get($path);
+        } else {
+            $pdf = $this->renderPdf($protocol);
+            if ($protocol->isApproved()) {
+                $disk->put($path, $pdf);
+            }
+        }
+
+        $name = 'protokol_'.preg_replace('/[^A-Za-z0-9_-]+/', '_', $protocol->data['ticket']['number'] ?? (string) $protocol->id).'.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$name.'"',
+        ]);
+    }
+
+    public static function renderPdf(Protocol $protocol): string
+    {
+        $html = view(self::viewName($protocol), self::viewData($protocol))->render();
+        $options = new Options;
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', false);
+        $options->set('tempDir', storage_path('framework/cache'));
+        $options->set('fontCache', storage_path('framework/cache'));
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4');
+        $dompdf->render();
+
+        return $dompdf->output();
+    }
+
+    private static function viewName(Protocol $protocol): string
+    {
+        return ($protocol->data['template'] ?? 'standard') === 'm4b' && ! empty($protocol->data['m4b_labels'])
+            ? 'protocols.m4b' : 'protocols.show';
+    }
+
+    /** @return array<string, mixed> */
+    private static function viewData(Protocol $protocol): array
+    {
+        return ['protocol' => $protocol, 'd' => $protocol->data, 'l' => $protocol->data['labels']];
     }
 
     private function authorizeView(Request $request, Protocol $protocol): void

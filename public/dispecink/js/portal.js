@@ -33,7 +33,7 @@ const T = {
     visits: 'Návštěvy', noVisits: 'Technik zatím nic nezapsal.', arrived: 'Příjezd', departed: 'Odjezd', minutes: 'Na místě', km: 'Km',
     work: 'Provedené práce', repair: 'Oprava / příčina', testResult: 'Test', instruction: 'Návod', parts: 'Díly',
     partName: 'Díl', qty: 'Ks', snOut: 'S/N demont.', snIn: 'S/N mont.', photos: 'Fotky', forCustomer: 'pro zákazníka',
-    returnVisit: 'Vrátit technikovi', returnNote: 'Co má technik doplnit?', protocolCs: 'Protokol CZ', protocolPl: 'Protokol PL',
+    returnVisit: 'Vrátit technikovi', returnNote: 'Co má technik doplnit?', protocolCs: 'Protokol CZ', protocolPl: 'Protokol PL', protocolM4b: 'Protokol M4B', signatures: 'Podpisy',
     returnedNote: 'Vráceno:', protocols: 'Protokoly', preview: 'Náhled', approve: 'Schválit a uzavřít',
     confirmApprove: 'Schválit protokol? Zakázka se uzavře a zákazník protokol uvidí.', approved: 'Schváleno',
     pstatus: { draft: 'Návrh', approved: 'Schválený' },
@@ -99,7 +99,7 @@ const T = {
     visits: 'Wizyty', noVisits: 'Technik jeszcze nic nie zapisał.', arrived: 'Przyjazd', departed: 'Wyjazd', minutes: 'Na miejscu', km: 'Km',
     work: 'Wykonane prace', repair: 'Naprawa / przyczyna', testResult: 'Test', instruction: 'Instrukcja', parts: 'Części',
     partName: 'Część', qty: 'Szt.', snOut: 'S/N zdem.', snIn: 'S/N zam.', photos: 'Zdjęcia', forCustomer: 'dla klienta',
-    returnVisit: 'Zwróć technikowi', returnNote: 'Co technik ma uzupełnić?', protocolCs: 'Protokół CZ', protocolPl: 'Protokół PL',
+    returnVisit: 'Zwróć technikowi', returnNote: 'Co technik ma uzupełnić?', protocolCs: 'Protokół CZ', protocolPl: 'Protokół PL', protocolM4b: 'Protokół M4B', signatures: 'Podpisy',
     returnedNote: 'Zwrócono:', protocols: 'Protokoły', preview: 'Podgląd', approve: 'Zatwierdź i zamknij',
     confirmApprove: 'Zatwierdzić protokół? Zlecenie zostanie zamknięte, a klient zobaczy protokół.', approved: 'Zatwierdzono',
     pstatus: { draft: 'Projekt', approved: 'Zatwierdzony' },
@@ -708,6 +708,10 @@ async function renderTicket(id) {
           <dt>${esc(t('repair'))}</dt><dd class="desc">${esc(v.repair_description || '—')}</dd>
           <dt>${esc(t('testResult'))}</dt><dd>${v.test_result ? esc(t('test.' + v.test_result)) : '—'}${v.test_note ? ' – ' + esc(v.test_note) : ''}</dd>
           ${v.instruction_ref ? `<dt>${esc(t('instruction'))}</dt><dd>${esc(v.instruction_ref)}</dd>` : ''}
+          ${v.signature_technician || v.signature_customer ? `<dt>${esc(t('signatures'))}</dt><dd class="sigs">
+            ${v.signature_technician ? `<img src="${esc(v.signature_technician)}" alt="" title="${esc(v.technician?.name || '')}">` : '<span class="muted">—</span>'}
+            ${v.signature_customer ? `<img src="${esc(v.signature_customer)}" alt="">` : '<span class="muted">—</span>'}
+            ${v.signer_name ? `<span class="muted small">${esc(v.signer_name)}</span>` : ''}</dd>` : ''}
         </dl>
         ${parts ? `<table class="parts"><thead><tr><th>${esc(t('partName'))}</th><th>${esc(t('qty'))}</th><th>${esc(t('snOut'))}</th><th>${esc(t('snIn'))}</th></tr></thead><tbody>${parts}</tbody></table>` : ''}
         ${photos.length ? `<div class="photos">${photos.map((a) => `
@@ -716,8 +720,10 @@ async function renderTicket(id) {
           </div>`).join('')}</div>` : ''}
         ${manage && v.status === 'submitted' ? `
           <div class="btn-row" style="margin-top:12px">
-            <button class="btn success" data-proto="cs" data-v="${esc(v.uuid)}">📄 ${esc(t('protocolCs'))}</button>
-            <button class="btn success" data-proto="pl" data-v="${esc(v.uuid)}">📄 ${esc(t('protocolPl'))}</button>
+            ${tk.project?.protocol_template === 'm4b'
+              ? `<button class="btn success" data-proto="pl" data-v="${esc(v.uuid)}">📄 ${esc(t('protocolM4b'))}</button>`
+              : `<button class="btn success" data-proto="cs" data-v="${esc(v.uuid)}">📄 ${esc(t('protocolCs'))}</button>
+            <button class="btn success" data-proto="pl" data-v="${esc(v.uuid)}">📄 ${esc(t('protocolPl'))}</button>`}
             <button class="btn danger" data-return="${esc(v.uuid)}">↩ ${esc(t('returnVisit'))}</button>
           </div>` : ''}
       </div>`;
@@ -728,9 +734,10 @@ async function renderTicket(id) {
   const ticketPhotos = (tk.attachments || []).filter((a) => a.kind === 'photo' && !visitAtt.has(a.uuid));
   const protocols = (tk.protocols || []).map((p) => `
     <div class="visit-head" style="border-bottom:1px solid var(--line);padding-bottom:8px">
-      <strong>${esc(p.language.toUpperCase())}</strong>${chip(p.status === 'approved' ? 'approved' : 'draft', t('pstatus.' + p.status))}
+      <strong>${p.template === 'm4b' ? 'M4B' : esc(p.language.toUpperCase())}</strong>${chip(p.status === 'approved' ? 'approved' : 'draft', t('pstatus.' + p.status))}
       <span class="muted small">${esc(fmt(p.approved_at))}</span>
       <button class="btn sm" data-preview="${esc(p.html_url)}">${esc(t('preview'))}</button>
+      <button class="btn sm" data-preview="${esc(p.pdf_url)}">PDF</button>
       ${manage && p.status === 'draft' ? `<button class="btn sm success" data-approve="${p.id}">✓ ${esc(t('approve'))}</button>` : ''}
     </div>`).join('');
 

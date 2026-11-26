@@ -1,10 +1,10 @@
 // Service worker – aplikace funguje i bez signálu.
 // Soubory aplikace: síť napřed (vždy aktuální verze), při výpadku z cache.
 // API se tu necachuje – data drží aplikace v IndexedDB.
-const CACHE = 'pap-technik-v3';
+const CACHE = 'pap-technik-v4';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/app.js', 'js/api.js', 'js/db.js', 'js/sync.js', 'js/i18n.js', 'js/ui.js', 'js/photo.js', 'js/push.js',
+  'js/app.js', 'js/api.js', 'js/db.js', 'js/sync.js', 'js/i18n.js', 'js/ui.js', 'js/photo.js', 'js/push.js', 'js/signature.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 

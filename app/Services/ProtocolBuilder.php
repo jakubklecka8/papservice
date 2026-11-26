@@ -70,6 +70,24 @@ class ProtocolBuilder
         ],
     ];
 
+    /** Popisky šablony M4B – převzaté 1:1 ze starého protokolu (vždy polsky) */
+    public const M4B_LABELS = [
+        'title' => 'PROTOKOL',
+        'subtitle' => 'Wykonanych prac',
+        'contractor' => 'Wykonawca',
+        'client' => 'Zlecajacy',
+        'start' => 'Data i godzina rozpoczęcia',
+        'end' => 'Data i godzina zakończenia',
+        'work' => 'Wykonane prace',
+        'notes' => 'Uwagi',
+        'sig_contractor' => 'Podpis wykonawcy',
+        'sig_client' => 'Podpis zleceniodawcy',
+        'sig_contractor_note' => '(data i podpis wykonawcy)',
+        'sig_client_note' => '(data i podpis zleceniodawcy)',
+        'parts' => 'Użyte części',
+        'number' => 'Nr zlecenia',
+    ];
+
     /** @return array<string, mixed> */
     public function build(Visit $visit, string $language): array
     {
@@ -77,10 +95,14 @@ class ProtocolBuilder
         $ticket = $visit->ticket;
         $location = $ticket->location;
 
+        $template = $ticket->project->protocol_template ?: 'standard';
+
         return [
+            'template' => $template,
             'language' => $language,
             'ticket' => [
                 'number' => $ticket->number,
+                'external_ref' => $ticket->external_ref,
                 'title' => $ticket->title,
                 'description' => $ticket->description,
                 'service_type' => $ticket->service_type,
@@ -104,6 +126,12 @@ class ProtocolBuilder
                 'test_note' => $visit->test_note,
                 'instruction_ref' => $visit->instruction_ref,
             ],
+            'signatures' => [
+                'technician' => $visit->signature_technician,
+                'customer' => $visit->signature_customer,
+                'signer_name' => $visit->signer_name,
+                'signed_at' => $visit->signed_at?->toIso8601String(),
+            ],
             'parts' => $visit->parts->sortBy('id')->values()->map(fn ($p) => [
                 'name' => $p->name,
                 'part_number' => $p->part_number,
@@ -113,7 +141,8 @@ class ProtocolBuilder
                 'serialized' => (bool) $p->part?->serialized,
             ])->all(),
             'photos' => $visit->attachments->where('kind', 'photo')->sortBy('id')->pluck('uuid')->values()->all(),
-            'labels' => self::LABELS[$language],
+            'labels' => self::LABELS[$language] + ['sig_technician' => $language === 'pl' ? 'Podpis technika' : 'Podpis technika', 'sig_customer' => $language === 'pl' ? 'Podpis klienta' : 'Podpis zákazníka'],
+            'm4b_labels' => $template === 'm4b' ? self::M4B_LABELS : null,
         ];
     }
 }

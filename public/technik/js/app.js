@@ -7,12 +7,13 @@ import { api, setToken, ApiError, NetworkError } from './api.js';
 import { enqueue, stats, pendingFor, discard, retryFailed, kick, syncEvents } from './sync.js';
 import { t, setLang, getLang } from './i18n.js';
 import { shrink } from './photo.js';
+import { signaturePad } from './signature.js';
 import { pushSupported, pushPermission, enablePush, refreshPush, disablePushForLogout, needsInstallForPush } from './push.js';
 import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -445,6 +446,7 @@ function newDraft(ticketId) {
     uuid: uuid(), ticketId: Number(ticketId), arrived_at: null, departed_at: null, km: null,
     work_description: '', repair_description: '', test_result: null, test_note: '', instruction_ref: '',
     parts: [], serverPhotos: [],
+    signer_name: '', signature_technician: null, signature_customer: null,
   };
 }
 
@@ -455,6 +457,7 @@ function fromServer(v, ticketId) {
     test_result: v.test_result, test_note: v.test_note || '', instruction_ref: v.instruction_ref || '',
     parts: (v.parts || []).map((p) => ({ ...p })),
     serverPhotos: (v.attachments || []).filter((a) => a.kind === 'photo').map((a) => a.uuid),
+    signer_name: v.signer_name || '', signature_technician: v.signature_technician || null, signature_customer: v.signature_customer || null,
     status: v.status,
   };
 }
@@ -477,6 +480,7 @@ async function renderVisit(id) {
   const resolved = await resolveVisit(ticket);
   const d = resolved.draft;
   const readonly = resolved.mode === 'readonly';
+  const isM4b = ticket.project?.protocol_template === 'm4b';
   setTop((ticket.number || '#' + id) + ' · ' + t('visit'), true);
 
   const draftKey = 'draft:' + id;
@@ -584,6 +588,19 @@ async function renderVisit(id) {
         ${readonly ? '' : `<label class="photo photo-add">${esc(t('addPhoto'))}<input type="file" accept="image/*" capture="environment" multiple hidden id="photo-in"></label>`}
       </div>
 
+      <div class="section-title">${esc(t('signatures'))}${isM4b ? ' · M4B' : ''}</div>
+      <div class="card">
+        <div class="sig-grid">
+          ${['technician', 'customer'].map((k) => {
+            const img = d['signature_' + k];
+            return `<div><div class="sig-label ${isM4b ? 'req' : ''}">${esc(t(k === 'technician' ? 'sigTech' : 'sigCustomer'))}</div>
+              <div class="sig-box ${img ? 'done' : ''}" data-sig="${k}">${img ? `<img src="${esc(img)}" alt="">` : (readonly ? '—' : esc(t('sigTap')))}</div></div>`;
+          }).join('')}
+        </div>
+        <label class="field" style="margin:10px 0 0"><span>${esc(t('signerName'))}</span>
+          <input type="text" data-f="signer_name" value="${esc(d.signer_name || '')}" ${dis}></label>
+      </div>
+
       ${readonly ? '' : `
       <div class="sticky-actions">
         <div class="row">
@@ -601,6 +618,19 @@ async function renderVisit(id) {
     for (const el of $app.querySelectorAll('[data-server]')) loadServerImage(el.dataset.server, el.querySelector('img'));
 
     if (readonly) return;
+
+    // podpisy
+    for (const box of $app.querySelectorAll('[data-sig]')) {
+      box.onclick = async () => {
+        const k = box.dataset.sig;
+        const png = await signaturePad(t(k === 'technician' ? 'sigTech' : 'sigCustomer'));
+        if (png === undefined) return; // zrušeno
+        d['signature_' + k] = png;     // null = smazaný podpis
+        await persist();
+        save.flush();
+        draw();
+      };
+    }
 
     // pole návštěvy
     for (const el of $app.querySelectorAll('[data-f]')) {
@@ -703,12 +733,14 @@ async function renderVisit(id) {
       if (!d.test_result) missing.push(t('test'));
       if (d.parts.some((p) => !p.name.trim())) missing.push(t('partName'));
       if (d.arrived_at && d.departed_at && new Date(d.departed_at) < new Date(d.arrived_at)) missing.push(t('departed') + ' < ' + t('arrived'));
+      if (isM4b && !d.signature_technician) missing.push(t('sigTech'));
       if (missing.length) {
         toast(t('missing') + ' ' + missing.join(', '), true, 5000);
         return;
       }
       const noSn = d.parts.filter((p) => p.part_id && catById(p.part_id)?.serialized && (!p.serial_installed || !p.serial_removed));
-      const warn = noSn.length ? `⚠ ${t('snMissingWarn')} ${noSn.map((p) => p.name).join(', ')}\n\n` : '';
+      let warn = noSn.length ? `⚠ ${t('snMissingWarn')} ${noSn.map((p) => p.name).join(', ')}\n\n` : '';
+      if (isM4b && !d.signature_customer) warn += `⚠ ${t('sigMissingWarn')}\n\n`;
       if (!(await confirmSheet(warn + t('confirmSubmit')))) return;
 
       await save.flush();
@@ -754,6 +786,9 @@ function visitPayload(d) {
     test_result: d.test_result,
     test_note: d.test_note || null,
     instruction_ref: d.instruction_ref || null,
+    signer_name: d.signer_name || null,
+    signature_technician: d.signature_technician || null,
+    signature_customer: d.signature_customer || null,
     parts: d.parts.filter((p) => p.name && p.name.trim()).map((p) => ({
       uuid: p.uuid, part_id: p.part_id || null, name: p.name.trim(), part_number: p.part_number || null, quantity: p.quantity ?? 1,
       serial_removed: p.serial_removed || null, serial_installed: p.serial_installed || null,

@@ -41,7 +41,7 @@ class TicketResource extends JsonResource
                 'confirmation_sent_at' => $this->sourceEmail->confirmation_sent_at?->toIso8601String(),
                 'ai' => collect($this->sourceEmail->ai_result ?? [])->only(['engine', 'confidence', 'reason', 'candidates', 'location_hints'])->all(),
             ]),
-            'project' => $this->whenLoaded('project', fn () => ['id' => $this->project->id, 'code' => $this->project->code, 'name' => $this->project->name]),
+            'project' => $this->whenLoaded('project', fn () => ['id' => $this->project->id, 'code' => $this->project->code, 'name' => $this->project->name, 'protocol_template' => $this->project->protocol_template ?? 'standard']),
             'location' => $this->whenLoaded('location', fn () => $this->location ? [
                 'id' => $this->location->id,
                 'code' => $this->location->code,

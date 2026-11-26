@@ -19,7 +19,9 @@ class ProtocolResource extends JsonResource
             'status' => $this->status,
             'content' => $this->data,
             'approved_at' => $this->approved_at?->toIso8601String(),
+            'template' => $this->data['template'] ?? 'standard',
             'html_url' => url('/api/v1/protocols/'.$this->id.'/html'),
+            'pdf_url' => url('/api/v1/protocols/'.$this->id.'/pdf'),
         ];
     }
 }

@@ -80,6 +80,7 @@ Route::prefix('v1')->group(function () {
         Route::post('visits/{visit}/protocol', [ProtocolController::class, 'store']);
         Route::get('protocols/{protocol}', [ProtocolController::class, 'show']);
         Route::get('protocols/{protocol}/html', [ProtocolController::class, 'html']);
+        Route::get('protocols/{protocol}/pdf', [ProtocolController::class, 'pdf']);
         Route::post('protocols/{protocol}/approve', [ProtocolController::class, 'approve']);
 
         Route::post('attachments', [AttachmentController::class, 'store']);

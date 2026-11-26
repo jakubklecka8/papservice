@@ -18,6 +18,8 @@
     th { background: #f1f1f1; width: 34%; font-weight: 600; }
     .parts th { width: auto; }
     .block { white-space: pre-wrap; }
+    .sigs td { width: 50%; height: 30mm; }
+    .sigs img { max-height: 24mm; max-width: 80mm; display: block; margin-top: 2mm; }
     .approved { margin-top: 6mm; padding: 3mm; border: 1px solid #2a7; color: #174; }
     .draft { margin-top: 6mm; padding: 3mm; border: 1px dashed #c80; color: #840; }
 </style>
@@ -63,6 +65,18 @@
                 @endforeach
             </tr>
         @endforeach
+    </table>
+@endif
+
+@php $sig = $d['signatures'] ?? []; @endphp
+@if (! empty($sig['technician']) || ! empty($sig['customer']))
+    <table class="sigs">
+        <tr>
+            <td><div class="muted">{{ $l['sig_technician'] ?? 'Podpis technika' }} · {{ $d['technician'] }}</div>
+                @if (! empty($sig['technician']))<img src="{{ $sig['technician'] }}" alt="">@endif</td>
+            <td><div class="muted">{{ $l['sig_customer'] ?? 'Podpis zákazníka' }}@if (! empty($sig['signer_name'])) · {{ $sig['signer_name'] }}@endif</div>
+                @if (! empty($sig['customer']))<img src="{{ $sig['customer'] }}" alt="">@endif</td>
+        </tr>
     </table>
 @endif
 

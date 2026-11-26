@@ -15,7 +15,7 @@ class ProjectSeeder extends Seeder
                 'end_customers' => [['code' => 'ZAS', 'name' => 'Zásilkovna', 'countries' => ['CZ', 'PL']]]],
             ['code' => 'ALG', 'name' => 'Allegro', 'service_types' => ['servis', 'udrzba'], 'countries' => ['PL', 'CZ'],
                 'end_customers' => [['code' => 'ALG', 'name' => 'Allegro', 'countries' => ['PL', 'CZ']]]],
-            ['code' => 'M4B', 'name' => 'M4B', 'service_types' => ['servis', 'instalace'], 'countries' => ['CZ', 'PL', 'DE'],
+            ['code' => 'M4B', 'name' => 'M4B', 'protocol_template' => 'm4b', 'service_types' => ['servis', 'instalace'], 'countries' => ['CZ', 'PL', 'DE'],
                 'end_customers' => [
                     ['code' => 'AMREST', 'name' => 'KFC · SBX · BK AmRest', 'countries' => ['CZ', 'DE']],
                     ['code' => 'BKREX', 'name' => 'BK REX', 'countries' => ['CZ', 'PL']],

@@ -40,6 +40,10 @@ class VisitController extends Controller
             'test_note' => ['nullable', 'string', 'max:2000'],
             'instruction_ref' => ['nullable', 'string', 'max:255'],
             'client_updated_at' => ['nullable', 'date'],
+            'signer_name' => ['nullable', 'string', 'max:255'],
+            // podpis prstem z PWA jako PNG data URL (max ~400 kB)
+            'signature_technician' => ['nullable', 'string', 'max:400000', 'regex:/^data:image\/png;base64,[A-Za-z0-9+\/=]+$/'],
+            'signature_customer' => ['nullable', 'string', 'max:400000', 'regex:/^data:image\/png;base64,[A-Za-z0-9+\/=]+$/'],
             'parts' => ['sometimes', 'array', 'max:100'],
             'parts.*.uuid' => ['required', 'uuid'],
             'parts.*.name' => ['required', 'string', 'max:255'],
@@ -80,6 +84,12 @@ class VisitController extends Controller
             $fields = collect($data)->except('parts')->all();
             if (empty($fields['minutes_on_site']) && ! empty($fields['arrived_at']) && ! empty($fields['departed_at'])) {
                 $fields['minutes_on_site'] = (int) $fields['arrived_at']->diffInMinutes($fields['departed_at']);
+            }
+            if (array_key_exists('signature_customer', $fields)) {
+                $changed = $visit === null || $visit->signature_customer !== $fields['signature_customer'];
+                if ($changed) {
+                    $fields['signed_at'] = $fields['signature_customer'] ? now() : null;
+                }
             }
 
             if ($visit === null) {
