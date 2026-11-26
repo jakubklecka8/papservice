@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\SendPushNotification;
 use App\Models\Ticket;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 /** Texty push notifikací pro techniky (v jazyce technika) */
 class TechnicianNotifier
@@ -45,6 +46,17 @@ class TechnicianNotifier
         $this->send($technician, $ticket, [
             'title' => '📅 '.$ticket->number.' · '.$when,
             'body' => $this->line($ticket),
+        ]);
+    }
+
+    public function routeChanged(User $technician, string $date, int $stops): void
+    {
+        $pl = $technician->locale === 'pl';
+        SendPushNotification::dispatch($technician->id, [
+            'title' => '🧭 '.($pl ? 'Trasa ' : 'Trasa ').Carbon::parse($date)->format('d.m.'),
+            'body' => ($pl ? 'Zaktualizowano kolejność: ' : 'Upravené pořadí zastávek: ').$stops,
+            'url' => '/technik/#/route?date='.$date,
+            'tag' => 'route-'.$date,
         ]);
     }
 

@@ -20,7 +20,7 @@ class Location extends Model
 
     protected function casts(): array
     {
-        return ['lat' => 'float', 'lng' => 'float', 'is_active' => 'boolean'];
+        return ['lat' => 'float', 'lng' => 'float', 'geocoded_at' => 'datetime', 'is_active' => 'boolean'];
     }
 
     public function project(): BelongsTo

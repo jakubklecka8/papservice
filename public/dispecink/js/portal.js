@@ -202,6 +202,8 @@ Object.assign(T.pl, {
   projects: 'Projekty', newProject: 'Nowy projekt', serviceTypes: 'Typy usług', countries: 'Kraje (CZ, PL, DE…)', protocolTpl: 'Wygląd protokołu',
   sla: 'SLA – termin za (godzin)', endCustomers: 'Klienci końcowi (KOD;Nazwa w linii)', inactiveP: 'nieaktywny',
 });
+Object.assign(T.cs, { route: 'Trasa', routeOptimize: 'Seřadit optimálně', routeStart: 'Odjezd z domova', routeService: 'Min. na zastávce', routeGeocode: 'Dohledat polohy', routeMissing: 'Bez polohy: {n} – nejsou na mapě ani v odhadu km.', routeNoHome: 'Technik nemá zadanou základnu (Uživatelé → adresa) – trasa se počítá od první zastávky.', routeOpenGmaps: 'Otevřít v Google Maps', routeTotal: 'Celkem', routeDrive: 'jízda', homeAddress: 'Základna / domov (start trasy)', homeNotFound: 'adresa nenalezena', routeBack: 'návrat' });
+Object.assign(T.pl, { route: 'Trasa', routeOptimize: 'Ułóż optymalnie', routeStart: 'Wyjazd z bazy', routeService: 'Min. na przystanku', routeGeocode: 'Znajdź lokalizacje', routeMissing: 'Bez lokalizacji: {n} – brak na mapie i w szacunku km.', routeNoHome: 'Technik nie ma bazy (Użytkownicy → adres) – trasa liczona od pierwszego przystanku.', routeOpenGmaps: 'Otwórz w Google Maps', routeTotal: 'Razem', routeDrive: 'jazda', homeAddress: 'Baza / dom (start trasy)', homeNotFound: 'adres nie znaleziony', routeBack: 'powrót' });
 const SERVICE_TYPES = ['servis', 'profilaxe', 'udrzba', 'instalace'];
 const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const canPlan = () => has('admin', 'dispecer');
@@ -1198,6 +1200,8 @@ async function editUser(u, prj) {
         <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(cur.name || '')}"></label>
         <label class="f"><span class="req">${esc(t('email'))}</span><input type="email" name="email" required value="${esc(cur.email || '')}"></label>
         <label class="f"><span>${esc(t('phone'))}</span><input type="tel" name="phone" value="${esc(cur.phone || '')}"></label>
+        <label class="f full"><span>🏠 ${esc(t('homeAddress'))}</span><input type="text" name="home_address" value="${esc(cur.home_address || '')}" placeholder="Ulice 1, 742 13 Studénka">
+          ${cur.home_address && !cur.home_located ? `<small style="color:var(--bad)">⚠ ${esc(t('homeNotFound'))}</small>` : ''}</label>
         <label class="f"><span>${esc(t('language'))}</span><select name="locale"><option value="cs" ${cur.locale === 'cs' ? 'selected' : ''}>Čeština</option><option value="pl" ${cur.locale === 'pl' ? 'selected' : ''}>Polski</option></select></label>
         <label class="f"><span class="${u ? '' : 'req'}">${esc(u ? t('newPassword') : t('password'))}</span><input type="text" name="password" ${u ? '' : 'required'} minlength="8" autocomplete="new-password"></label>
         <label class="f"><span>${esc(t('active'))}</span><select name="is_active"><option value="1" ${cur.is_active ? 'selected' : ''}>${esc(t('yes'))}</option><option value="0" ${!cur.is_active ? 'selected' : ''}>${esc(t('no'))}</option></select></label>
@@ -1225,7 +1229,7 @@ async function editUser(u, prj) {
       e.preventDefault();
       const checked = (name) => [...d.querySelectorAll(`input[name=${name}]:checked`)].map((c) => c.value);
       const body = {
-        name: f.name.value.trim(), email: f.email.value.trim(), phone: f.phone.value.trim() || null,
+        name: f.name.value.trim(), email: f.email.value.trim(), phone: f.phone.value.trim() || null, home_address: f.home_address.value.trim() || null,
         locale: f.locale.value, is_active: f.is_active.value === '1',
         roles: checked('roles'), project_ids: checked('projects').map(Number), location_ids: checked('locs').map(Number),
       };
@@ -1985,7 +1989,7 @@ async function renderPlanning(q) {
     const ymd = ymdLocal(d);
     const items = r.planned.filter((x) => x.technician_id === u.id && ymdLocal(new Date(x.planned_at)) === ymd);
     const ab = absenceOn(u.id, ymd);
-    return `<td class="pl-cell ${ymd === todayYmd ? 'today' : ''} ${ab ? 'absent' : ''}" data-cell="${u.id}|${ymd}">${ab ? `<div class="pl-abs" data-abs="${ab.id}">🏖 ${esc(ab.note || t('absence'))}</div>` : ''}${items.map((x) => card(x, true)).join('')}</td>`;
+    return `<td class="pl-cell ${ymd === todayYmd ? 'today' : ''} ${ab ? 'absent' : ''}" data-cell="${u.id}|${ymd}">${items.length ? `<button class="pl-route" data-route="${u.id}|${ymd}" title="${esc(t('route'))}">🗺 ${items.length}</button>` : ''}${ab ? `<div class="pl-abs" data-abs="${ab.id}">🏖 ${esc(ab.note || t('absence'))}</div>` : ''}${items.map((x) => card(x, true)).join('')}</td>`;
   }).join('')}</tr>`).join('');
   // naplánované bez technika (nebo u technika mimo seznam)
   const orphan = r.planned.filter((x) => !r.technicians.some((u) => u.id === x.technician_id));
@@ -2024,6 +2028,13 @@ async function renderPlanning(q) {
     c.onclick = async (e) => { e.stopPropagation(); const x = byId.get(Number(c.dataset.tk)); if (await planModal(x)) reload(); };
     c.ondblclick = (e) => { e.stopPropagation(); location.hash = '#/t/' + c.dataset.tk; };
     c.ondragstart = (e) => { e.dataTransfer.setData('text/plain', c.dataset.tk); e.dataTransfer.effectAllowed = 'move'; };
+  });
+  el.querySelectorAll('[data-route]').forEach((b) => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      const [uid, ymd] = b.dataset.route.split('|');
+      if (await routeModal(Number(uid), ymd)) reload();
+    };
   });
   el.querySelectorAll('[data-abs]').forEach((a) => {
     a.onclick = async (e) => {
@@ -2416,4 +2427,120 @@ async function checklistForm(c, prj) {
       } catch (ex) { const er = d.querySelector('#clerr'); er.textContent = errText(ex); er.hidden = false; }
     };
   });
+}
+
+
+// ================================================================ trasa technika (mapa)
+
+let leafletLoading;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  leafletLoading ??= new Promise((resolve, reject) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = '/vendor/leaflet/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = '/vendor/leaflet/leaflet.js';
+    js.onload = () => resolve(window.L);
+    js.onerror = () => { leafletLoading = null; reject(new Error('Mapu se nepodařilo načíst')); };
+    document.head.appendChild(js);
+  });
+  return leafletLoading;
+}
+
+function gmapsRouteUrl(r) {
+  const pts = r.stops.map((s) => (s.location?.lat != null ? `${s.location.lat},${s.location.lng}` : s.location?.address)).filter(Boolean);
+  if (!pts.length) return null;
+  const origin = r.home?.lat != null ? `${r.home.lat},${r.home.lng}` : r.home?.address || '';
+  const dest = origin && r.home ? origin : pts[pts.length - 1];
+  const wps = (origin && r.home ? pts : pts.slice(0, -1)).slice(0, 9);
+  return 'https://www.google.com/maps/dir/?api=1&travelmode=driving' + (origin ? '&origin=' + encodeURIComponent(origin) : '')
+    + '&destination=' + encodeURIComponent(dest) + (wps.length ? '&waypoints=' + encodeURIComponent(wps.join('|')) : '');
+}
+
+/** Trasa technika na den: mapa, pořadí, km, optimalizace. Vrací true, když se změnil plán. */
+async function routeModal(techId, date) {
+  let r;
+  try { r = (await api('GET', `/routes?technician_id=${techId}&date=${date}`)).data; } catch (e) { toast(errText(e), true); return false; }
+  let changed = false;
+  let departure = '08:00';
+  const hm = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+
+  await modal(`<div id="rt"></div>`, (d, close) => {
+    d.classList.add('modal-wide');
+    const box = d.querySelector('#rt');
+    let map;
+    const draw = async () => {
+      const gm = gmapsRouteUrl(r);
+      box.innerHTML = `
+        <h3>🗺 ${esc(t('route'))} · ${esc(r.technician.name)} · ${esc(new Date(date + 'T12:00').toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'numeric' }))}</h3>
+        ${!r.home?.lat ? `<div class="banner warn small">${esc(t('routeNoHome'))}</div>` : ''}
+        ${r.missing_coords ? `<div class="banner warn small">${esc(t('routeMissing').replace('{n}', r.missing_coords))} <button class="btn sm" id="rt-geo">📍 ${esc(t('routeGeocode'))}</button></div>` : ''}
+        <div class="rt-wrap">
+          <div id="rt-map" class="rt-map"></div>
+          <div class="rt-list">
+            <div class="rt-sum"><strong>${esc(t('routeTotal'))}: ≈ ${r.total_km} km</strong> · ${Math.floor(r.drive_minutes / 60)} h ${r.drive_minutes % 60} min ${esc(t('routeDrive'))}</div>
+            ${r.home ? `<div class="rt-stop home">🏠 ${esc(r.home.address || '')}</div>` : ''}
+            ${r.stops.map((s, i) => `
+              ${s.leg_km != null ? `<div class="rt-leg">↓ ${s.leg_km} km</div>` : ''}
+              <div class="rt-stop"><span class="rt-no">${i + 1}</span><div>
+                <strong>${s.planned_at ? esc(hm(s.planned_at)) + ' · ' : ''}${esc(s.location ? s.location.code : s.title)}</strong>${s.location?.lat == null ? ' <span title="bez polohy">⚠</span>' : ''}
+                <div class="muted small">${esc(s.location?.address || '')}</div>
+                <div class="small"><a href="#/t/${s.ticket_id}" data-close>${esc(s.number || '')}</a> · ${esc(s.title)}</div></div></div>`).join('')}
+            ${r.return_km != null ? `<div class="rt-leg">↓ ${r.return_km} km · 🏠 ${esc(t('routeBack'))}</div>` : ''}
+          </div>
+        </div>
+        <div class="rt-opt">
+          <label class="f" style="margin:0"><span>${esc(t('routeStart'))}</span><input type="time" id="rt-start" value="${esc(departure)}"></label>
+          <label class="f" style="margin:0"><span>${esc(t('routeService'))}</span><input type="number" id="rt-svc" min="5" max="480" value="45"></label>
+          <button class="btn primary" id="rt-opt">⚡ ${esc(t('routeOptimize'))}</button>
+          <span class="sp"></span>
+          ${gm ? `<a class="btn" href="${esc(gm)}" target="_blank" rel="noopener">🧭 ${esc(t('routeOpenGmaps'))}</a>` : ''}
+          <button class="btn" data-close>${esc(t('cancel'))}</button>
+        </div>`;
+      box.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => close()));
+      box.querySelector('#rt-opt').onclick = async (e) => {
+        e.target.disabled = true;
+        try {
+          departure = box.querySelector('#rt-start').value || '08:00';
+          r = (await api('POST', '/routes/optimize', { technician_id: techId, date, start: departure, service_minutes: Number(box.querySelector('#rt-svc').value || 45) })).data;
+          changed = true; toast(t('saved')); draw();
+        } catch (ex) { toast(errText(ex), true); e.target.disabled = false; }
+      };
+      box.querySelector('#rt-geo')?.addEventListener('click', async (e) => {
+        e.target.disabled = true; e.target.textContent = '…';
+        try { r = (await api('POST', '/routes/geocode', { technician_id: techId, date })).data; draw(); } catch (ex) { toast(errText(ex), true); }
+      });
+
+      try {
+        const L = await loadLeaflet();
+        if (map) map.remove();
+        map = L.map(box.querySelector('#rt-map'), { scrollWheelZoom: false });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+        const pts = [];
+        if (r.home?.lat != null) {
+          pts.push([r.home.lat, r.home.lng]);
+          L.marker([r.home.lat, r.home.lng], { icon: L.divIcon({ className: 'rt-pin home', html: '🏠', iconSize: [28, 28] }) }).addTo(map).bindPopup(esc(r.home.address || ''));
+        }
+        r.stops.forEach((s, i) => {
+          if (s.location?.lat == null) return;
+          pts.push([s.location.lat, s.location.lng]);
+          L.marker([s.location.lat, s.location.lng], { icon: L.divIcon({ className: 'rt-pin', html: String(i + 1), iconSize: [28, 28] }) })
+            .addTo(map).bindPopup(`<strong>${i + 1}. ${esc(s.location.code)}</strong><br>${esc(s.location.name)}<br>${esc(s.number || '')} · ${esc(s.title)}`);
+        });
+        if (r.home?.lat != null && pts.length > 1) pts.push([r.home.lat, r.home.lng]);
+        if (pts.length > 1) {
+          L.polyline(pts, { color: '#1667ab', weight: 3, opacity: 0.8, dashArray: '6 6' }).addTo(map);
+          map.fitBounds(pts, { padding: [30, 30] });
+        } else if (pts.length === 1) map.setView(pts[0], 12);
+        else map.setView([49.8, 18.2], 8);
+        setTimeout(() => map.invalidateSize(), 50);
+      } catch (ex) {
+        box.querySelector('#rt-map').innerHTML = `<div class="muted small" style="padding:20px">${esc(ex.message)}</div>`;
+      }
+    };
+    draw();
+    d.addEventListener('close', () => { d.classList.remove('modal-wide'); map?.remove(); }, { once: true });
+  });
+  return changed;
 }

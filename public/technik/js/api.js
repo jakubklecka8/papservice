@@ -60,6 +60,7 @@ export const api = {
   submitVisit: (uuid) => request('POST', `/visits/${uuid}/submit`),
   setStatus: (ticketId, status, note) => request('POST', `/tickets/${ticketId}/status`, { status, note }),
   uploadPhoto: (form) => request('POST', '/attachments', form, { timeout: 120000 }),
+  route: (date) => request('GET', `/routes?date=${date}`),
   catalog: () => request('GET', '/parts?per_page=2000'),
   myStock: () => request('GET', '/stock?warehouse_id=mine'),
   pushKey: () => request('GET', '/push/key'),

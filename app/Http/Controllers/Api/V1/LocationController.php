@@ -31,7 +31,16 @@ class LocationController extends Controller
             abort(422, 'Projekt provozovny nejde změnit.');
         }
 
-        $location->update($data);
+        $location->fill($data);
+        if (array_key_exists('lat', $data) || array_key_exists('lng', $data)) {
+            // ručně zadané souřadnice
+            $location->geocode_status = $location->lat !== null ? 'manual' : null;
+            $location->geocoded_at = $location->lat !== null ? now() : null;
+        } elseif ($location->isDirty(['street', 'city', 'zip', 'country'])) {
+            // změnila se adresa → souřadnice se dohledají znovu (cron)
+            $location->forceFill(['lat' => null, 'lng' => null, 'geocoded_at' => null, 'geocode_status' => null]);
+        }
+        $location->save();
 
         return response()->json(['data' => $location->fresh()]);
     }

@@ -168,3 +168,13 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--brand-2); o
 .cl-seg button.on.na { background: #6b7280; color: #fff; border-color: #6b7280; }
 .cl-note { width: 100%; margin-top: 6px; min-height: 42px; padding: 8px 10px; border-radius: 10px; border: 1px solid #c9d2dc; font-size: 16px; }
 .ticket-meta .planned { font-weight: 700; color: var(--brand); }
+
+/* --- trasa --- */
+.route-card { display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--text); background: #eaf3fc; border-color: #c8dcf0; }
+.route-card span { color: var(--brand); font-weight: 600; }
+.route-sum { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.route-stop { position: relative; }
+.route-stop .card { margin-bottom: 6px; }
+.route-nav { margin: 0 0 4px auto; display: flex; width: max-content; }
+.route-leg { text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; margin: 4px 0 8px; }
+.route-no { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; font-weight: 700; font-size: 13px; margin-right: 6px; flex: none; }

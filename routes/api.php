@@ -6,12 +6,13 @@ use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\DeviceController;
-use App\Http\Controllers\Api\V1\PlanningController;
-use App\Http\Controllers\Api\V1\SetupController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LookupController;
+use App\Http\Controllers\Api\V1\PlanningController;
 use App\Http\Controllers\Api\V1\ProtocolController;
 use App\Http\Controllers\Api\V1\PushController;
+use App\Http\Controllers\Api\V1\RouteController;
+use App\Http\Controllers\Api\V1\SetupController;
 use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\TicketController;
 use App\Http\Controllers\Api\V1\VisitController;
@@ -73,6 +74,9 @@ Route::prefix('v1')->group(function () {
         Route::patch('devices/{device}', [DeviceController::class, 'update']);
         Route::post('devices/{device}/events', [DeviceController::class, 'addEvent']);
 
+        Route::get('routes', [RouteController::class, 'show']);
+        Route::post('routes/optimize', [RouteController::class, 'optimize']);
+        Route::post('routes/geocode', [RouteController::class, 'geocode']);
         Route::get('planning', [PlanningController::class, 'calendar']);
         Route::post('tickets/{ticket}/plan', [PlanningController::class, 'plan']);
         Route::post('absences', [PlanningController::class, 'storeAbsence']);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Geocoder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,7 @@ class UserController extends Controller
                 'email' => strtolower($data['email']),
                 'password' => $data['password'],
                 'phone' => $data['phone'] ?? null,
+                'home_address' => $data['home_address'] ?? null,
                 'locale' => $data['locale'] ?? 'cs',
                 'is_active' => $data['is_active'] ?? true,
             ]);
@@ -41,6 +43,8 @@ class UserController extends Controller
 
             return $user;
         });
+
+        $this->geocodeHome($user->fresh());
 
         return response()->json(['data' => $this->payload($user->fresh(['roleRows', 'projects', 'locations']))], 201);
     }
@@ -61,7 +65,11 @@ class UserController extends Controller
         }
 
         DB::transaction(function () use ($user, $data) {
-            $fields = collect($data)->only(['name', 'phone', 'locale', 'is_active'])->all();
+            $fields = collect($data)->only(['name', 'phone', 'locale', 'is_active', 'home_address'])->all();
+            if (array_key_exists('home_address', $fields) && $fields['home_address'] !== $user->home_address) {
+                $fields['home_lat'] = null;
+                $fields['home_lng'] = null;
+            }
             if (! empty($data['email'])) {
                 $fields['email'] = strtolower($data['email']);
             }
@@ -77,7 +85,16 @@ class UserController extends Controller
             }
         });
 
+        $this->geocodeHome($user->fresh());
+
         return response()->json(['data' => $this->payload($user->fresh(['roleRows', 'projects', 'locations']))]);
+    }
+
+    private function geocodeHome(User $user): void
+    {
+        if ($user->home_address && $user->home_lat === null) {
+            app(Geocoder::class)->user($user);
+        }
     }
 
     private function validated(Request $request, ?User $user): array
@@ -87,6 +104,7 @@ class UserController extends Controller
             'email' => [$user ? 'sometimes' : 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)],
             'password' => [$user ? 'nullable' : 'required', 'string', Password::min(8)],
             'phone' => ['nullable', 'string', 'max:32'],
+            'home_address' => ['nullable', 'string', 'max:255'],
             'locale' => ['nullable', Rule::in(['cs', 'pl'])],
             'is_active' => ['sometimes', 'boolean'],
             'roles' => [$user ? 'sometimes' : 'required', 'array', 'min:1'],
@@ -118,6 +136,8 @@ class UserController extends Controller
             'name' => $u->name,
             'email' => $u->email,
             'phone' => $u->phone,
+            'home_address' => $u->home_address,
+            'home_located' => $u->home_lat !== null,
             'locale' => $u->locale,
             'is_active' => (bool) $u->is_active,
             'roles' => $u->roleRows->sortBy('id')->pluck('role')->values(),

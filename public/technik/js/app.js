@@ -13,7 +13,7 @@ import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -117,6 +117,7 @@ function setTop(title, back = false) {
 function parseRoute() {
   const h = location.hash.replace(/^#\/?/, '');
   if (h === 'login') return { view: 'login' };
+  if (h.startsWith('route')) return { view: 'route', date: new URLSearchParams(h.split('?')[1] || '').get('date') };
   let m = h.match(/^t\/(\d+)\/visit$/);
   if (m) return { view: 'visit', id: m[1] };
   m = h.match(/^t\/(\d+)$/);
@@ -136,6 +137,7 @@ async function route() {
   if (r.view === 'login') return renderLogin();
   if (r.view === 'detail') return renderDetail(r.id);
   if (r.view === 'visit') return renderVisit(r.id);
+  if (r.view === 'route') return renderRoute(r.date);
   return renderList();
 }
 
@@ -249,6 +251,8 @@ async function drawList(items, fromCache) {
       </a>`;
   }).join('');
 
+  const todayYmd = ymd(new Date());
+  const todayCount = items.filter((x) => x.planned_at && ymd(new Date(x.planned_at)) === todayYmd).length;
   const askPush = pushSupported() && pushPermission() === 'default' && !(await kv.get('pushDismissed'));
   const iosHint = !pushSupported() && needsInstallForPush() && !(await kv.get('pushDismissed'));
 
@@ -258,6 +262,7 @@ async function drawList(items, fromCache) {
       <div class="row" style="margin-top:8px"><button class="btn small" id="push-later">${esc(t('later'))}</button><button class="btn small primary" id="push-on">${esc(t('pushEnable'))}</button></div></div>` : ''}
     ${iosHint ? `<div class="banner warn" id="push-ask">🔔 ${esc(t('pushIos'))}
       <div class="row" style="margin-top:8px"><button class="btn small" id="push-later">${esc(t('ok'))}</button></div></div>` : ''}
+    ${todayCount ? `<a class="card route-card" href="#/route"><strong>🧭 ${esc(t('routeToday'))}</strong><span>${todayCount} ${esc(t('stops'))} ›</span></a>` : ''}
     ${cards || `<div class="empty">${esc(t('noTickets'))}</div>`}
     <div class="actions"><button class="btn" id="btn-refresh">↻ ${esc(t('refresh'))}</button></div>`;
   document.getElementById('btn-refresh').onclick = () => { kick(0); refreshList(true); };
@@ -930,3 +935,80 @@ async function logout() {
 }
 
 boot();
+
+
+// ---------------------------------------------------------------- trasa dne
+
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Odkaz do Google Maps přes všechny zastávky (start = aktuální poloha telefonu; max. 9 mezizastávek) */
+function gmapsRoute(stops) {
+  const pts = stops.map((s) => (s.location?.lat != null ? `${s.location.lat},${s.location.lng}` : s.location?.address)).filter(Boolean);
+  if (!pts.length) return null;
+  const dest = pts[pts.length - 1];
+  const wps = pts.slice(0, -1).slice(0, 9);
+  return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + encodeURIComponent(dest)
+    + (wps.length ? '&waypoints=' + encodeURIComponent(wps.join('|')) : '');
+}
+
+function gmapsPoint(loc) {
+  if (!loc) return null;
+  const q = loc.lat != null ? `${loc.lat},${loc.lng}` : loc.address;
+  return q ? 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + encodeURIComponent(q) : null;
+}
+
+async function renderRoute(date) {
+  const day = date || ymd(new Date());
+  const d = new Date(day + 'T12:00');
+  setTop('🧭 ' + d.toLocaleDateString(getLang() === 'pl' ? 'pl-PL' : 'cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric' }), true);
+  $app.innerHTML = '<div class="spinner"></div>';
+
+  let r = null;
+  let offline = false;
+  try {
+    r = (await api.route(day)).data;
+    await kv.set('route:' + day, r);
+  } catch {
+    r = await kv.get('route:' + day);
+    offline = true;
+  }
+  if (parseRoute().view !== 'route') return;
+
+  const shift = (n) => { const x = new Date(d); x.setDate(x.getDate() + n); location.hash = '#/route?date=' + ymd(x); };
+  const hm = (iso) => new Date(iso).toLocaleTimeString(getLang() === 'pl' ? 'pl-PL' : 'cs-CZ', { hour: '2-digit', minute: '2-digit' });
+  const stops = r?.stops || [];
+  const all = gmapsRoute(stops);
+
+  $app.innerHTML = `
+    ${offline ? `<div class="banner warn">${esc(t('offlineCached'))}</div>` : ''}
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn small" id="r-prev">‹ ${esc(t('prevDay'))}</button>
+      <button class="btn small" id="r-next">${esc(t('nextDay'))} ›</button>
+    </div>
+    ${stops.length ? `
+      <div class="card route-sum">
+        <div><strong>${stops.length}</strong> ${esc(t('stops'))}</div>
+        <div>≈ <strong>${r.total_km}</strong> km</div>
+        <div>≈ <strong>${Math.floor(r.drive_minutes / 60)} h ${r.drive_minutes % 60} min</strong> ${esc(t('driving'))}</div>
+      </div>
+      ${all ? `<a class="btn primary" style="width:100%;margin-bottom:12px" href="${esc(all)}" target="_blank" rel="noopener">🧭 ${esc(t('navigateAll'))}</a>` : ''}
+      ${stops.length > 10 ? `<div class="banner warn small">${esc(t('tooManyStops'))}</div>` : ''}
+      <div class="route-list">
+        ${stops.map((s, i) => `
+          <div class="route-stop">
+            ${s.leg_km != null ? `<div class="route-leg">↓ ${s.leg_km} km</div>` : ''}
+            <a class="card ticket prio-${esc(s.priority)}" href="#/t/${s.ticket_id}">
+              <div class="ticket-head"><span class="route-no">${i + 1}</span><span class="ticket-num">${s.planned_at ? '<strong>' + esc(hm(s.planned_at)) + '</strong> · ' : ''}${esc(s.number || '')}</span>${chip(s.status)}</div>
+              <div class="ticket-title">${esc(s.location ? s.location.code + ' · ' + s.location.name : s.title)}</div>
+              <div class="ticket-loc">${esc(s.location?.address || '')}<br>${esc(s.title)}</div>
+            </a>
+            ${gmapsPoint(s.location) ? `<a class="btn small route-nav" href="${esc(gmapsPoint(s.location))}" target="_blank" rel="noopener">🧭 ${esc(t('navigate'))}</a>` : ''}
+          </div>`).join('')}
+        ${r.return_km != null ? `<div class="route-leg">↓ ${r.return_km} km · 🏠 ${esc(t('backHome'))}</div>` : ''}
+      </div>` : `<div class="empty">${esc(t('noStops'))}</div>`}`;
+
+  document.getElementById('r-prev').onclick = () => shift(-1);
+  document.getElementById('r-next').onclick = () => shift(1);
+}

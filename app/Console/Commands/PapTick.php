@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Mailbox;
+use App\Services\Geocoder;
 use App\Services\Mail\MailboxImporter;
 use App\Services\ScheduleService;
 use Illuminate\Console\Command;
@@ -55,6 +56,16 @@ class PapTick extends Command
                 Cache::put('pap:schedules:recent', true, 3500);
                 try {
                     app(ScheduleService::class)->run();
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+
+            // souřadnice provozovnám bez polohy (OpenStreetMap, max. 1 dotaz/s)
+            if (! Cache::has('pap:geocode:recent')) {
+                Cache::put('pap:geocode:recent', true, 280);
+                try {
+                    app(Geocoder::class)->batch(5);
                 } catch (Throwable $e) {
                     report($e);
                 }
