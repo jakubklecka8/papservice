@@ -143,7 +143,11 @@ class ImapMailboxReader implements MailboxReader
             // nic
         }
 
-        $text = $m->hasTextBody() ? $m->getTextBody() : $this->htmlToText($m->getHTMLBody());
+        // ServiceNow apod. posílá jen HTML; i „textová“ část bývá někdy HTML
+        $raw = $m->hasTextBody() ? $m->getTextBody() : '';
+        $text = (trim($raw) === '' || preg_match('/<(html|body|div|table|p|br)\b/i', $raw))
+            ? MailText::fromHtml($raw !== '' && preg_match('/<(html|body|div|table|p|br)\b/i', $raw) ? $raw : $m->getHTMLBody())
+            : MailText::clean($raw);
 
         $attachments = [];
         foreach ($m->getAttachments() as $att) {
@@ -193,12 +197,5 @@ class ImapMailboxReader implements MailboxReader
         $id = trim($id);
 
         return str_starts_with($id, '<') ? $id : '<'.$id.'>';
-    }
-
-    private function htmlToText(string $html): string
-    {
-        $html = preg_replace('/<(br|\/p|\/div|\/tr|\/li)[^>]*>/i', "\n", $html);
-
-        return trim(html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 }

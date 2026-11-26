@@ -1,0 +1,298 @@
+Zadání servisní akce Slot content check na Z-Boxu CZ-02M3V (ID 13931, Bruntál, tř. Práce 1960/1, Kaufland, PSČ 79201), zásilka Z2017250507. Kontrola slotu D10 (ServiceNow slot 69 inventory order).
+
+— — —
+* {
+            -webkit-text-size-adjust: none;
+        }
+
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: Lato, Arial, sans-serif;
+        }
+
+        p.footer {
+            margin: 0;
+            font-size: 12px;
+            line-height: 18px;
+            color: #CFD5D7;
+        }
+
+        #snc_notification_unsubscribe,
+        #snc_notification_preference {
+            color: #1955BE;
+            font-size: 16px;
+            line-height: 19px;
+        }
+
+        #snc_notification_unsubscribe {
+            padding-right: 8px;
+        }
+
+        #snc_notification_preference {
+            padding-left: 8px;
+        }
+
+        body,
+        table,
+        td,
+        p,
+        a {
+            -ms-text-size-adjust: 100% !important;
+            -webkit-text-size-adjust: 100% !important;
+        }
+
+        table,
+        tr,
+        td {
+            border-spacing: 0 !important;
+            mso-table-lspace: 0 !important;
+            mso-table-rspace: 0 !important;
+            border-collapse: collapse !important;
+            mso-line-height-rule: exactly !important;
+        }
+
+        .mobile-link a,
+        .mobile-link span {
+            text-decoration: none !important;
+            color: inherit !important;
+            border: none !important;
+        }
+        .sidebar {
+            width: 16px;
+        }
+
+        .middle-container {
+            border-radius: 6px;
+            text-align: left;
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 24px;
+            padding-bottom: 24px;
+            background-color: #FFFFFF;
+        }
+
+        @media only screen and (min-width: 600px) {
+            .sidebar {
+                width: 32px;
+            }
+
+            .middle-container {
+                border-radius: 6px;
+                text-align: left;
+                padding-left: 24px;
+                padding-right: 24px;
+                padding-top: 40px;
+                padding-bottom: 40px;
+                background-color: #FFFFFF;
+            }
+        }
+    
+
+
+
+    
+        
+            
+                
+            
+
+            
+                
+                    
+                        
+                    
+
+                    
+                        
+                            
+                        
+                    
+
+                    
+                        
+                    
+
+                
+            
+
+            
+                
+            
+        
+
+    
+    
+        
+            
+                
+                
+                    
+                        
+                            
+                        
+
+                    
+                
+
+                
+                
+                    
+                        
+                            
+                                
+                                    Dobrý den,
+
+posílám Servis / Inventuru Z-BOXu:
+
+ 
+
+Z-BOX: CZ-02M3V, ID: 13931, Bruntál, tř. Práce 1960/1 (Kaufland), 79201
+
+Zásilka: Z2017250507
+
+Servisní akce: Slot content check
+
+Doplňující komentář:
+
+Slot(s) to be checked:
+D10 : ServiceNow slot 69 inventory order
+
+ 
+
+Díky!
+
+ 
+
+ 
+
+
+
+PRAVDILA PŘI ODEPISOVÁNÍ SERVISŮ
+
+V emailu musí být uvedeno:
+
+
+ID Z-Boxu (LID), obec, ulice
+
+Řešení opravy
+
+Foto balíku při inventuře
+
+Foto boxu před servisem/inventuře
+
+Foto boxu po servisu/inventuře
+
+Informace o nestandardních situacích (padá polep, mechanické poškození, bordel okolo Z-Boxu apod.)
+
+Odepsat na zadavatele servisu/inventury a do kopie dát jakub.ricar@packeta.com,  petr.dvorak@packeta.com
+
+
+ 
+
+TO-DO LIST
+
+Při jakémkoliv servisním zásahu nebo inventuře je nutné provést tyto kroky:
+
+
+Kontrola solárních panelů – ometení, očištění.
+
+Kontrola stability celého Z-Boxu
+
+Kontrola stavu baterie – pokud by měla být pod 30 % nabití, vyměnit.
+
+Očištění Z-Boxu obecně (otření, odstranění nečistot, tagů, graffiti, cizích nálepek a plakátů apod.).
+
+Oprava odřenin, vrypů, rezatících částí obroušením a zasprejováním barvou.
+
+Základní dezinsekce – pokud se v Z-Boxu usadí jakýkoliv hmyz, je nutné provést základní dezinsekci vhodným přípravkem (Biolit apod.). V případě rozsáhlého problému nás informovat.
+
+Informovat nás o jakékoliv nestandardní situaci jak na Z-Boxu, tak v okolí.
+
+
+ 
+
+Zásilky z inventur vozte 1x týdně ve všední den na libovolné depo
+
+
+
+
+
+                                
+                            
+
+                        
+                    
+                
+
+                
+                    
+                        
+                            
+                        
+
+                    
+                
+            
+
+            
+                
+            
+
+        
+    
+    
+        
+
+            
+                
+                    Unsubscribe | Notification Preferences
+                
+            
+
+            
+                
+            
+
+            
+                
+                    
+                
+            
+
+            
+                
+                    
+                        
+                            
+                                
+                                    2225 Lawson Lane, Santa Clara, CA 95054, United States
+                                
+
+                            
+                        
+
+                        
+                            
+                                
+                                    © 2026 ServiceNow Inc. All rights reserved.
+                                
+
+                            
+                        
+
+                        
+                            
+                        
+
+                    
+                
+            
+
+        
+    
+ 
+Ref:MSG11098201_O5SQohqKNPzn2NjtH76
+pro zákazníka
+pro zákazníka
+pro zákazníka

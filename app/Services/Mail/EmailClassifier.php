@@ -71,7 +71,7 @@ class EmailClassifier
     {
         $customers = $project->endCustomers->map(fn ($c) => $c->code.' = '.$c->name)->implode('; ');
         $attachments = collect($email->attachments ?? [])->pluck('name')->implode(', ');
-        $body = Str::limit((string) $email->body_text, 8000);
+        $body = Str::limit(MailText::forDescription((string) $email->body_text), 8000);
 
         $system = <<<TXT
 Jsi asistent servisního dispečinku firmy PAP Service. Z příchozího e-mailu vytáhni údaje servisního požadavku pro projekt „{$project->name}“.

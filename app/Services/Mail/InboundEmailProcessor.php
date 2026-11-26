@@ -211,7 +211,7 @@ class InboundEmailProcessor
             $ticket->history()->create([
                 'from_status' => $ticket->status->value,
                 'to_status' => $ticket->status->value,
-                'note' => '📧 '.($email->from_name ?: $email->from_email).': '.Str::limit($this->stripQuoted((string) $email->body_text), 900),
+                'note' => '📧 '.($email->from_name ?: $email->from_email).': '.Str::limit(MailText::forDescription($this->stripQuoted((string) $email->body_text)), 900),
             ]);
             $ticket->touch();
             TicketMessageId::remember($ticket->id, $email->message_id);
@@ -228,7 +228,7 @@ class InboundEmailProcessor
                 $endCustomerId = EndCustomer::where('project_id', $projectId)->where('code', $ai['end_customer_code'])->value('id');
             }
 
-            $description = trim(($ai['summary'] ? $ai['summary']."\n\n— — —\n" : '').Str::limit($this->stripQuoted((string) $email->body_text), 9000));
+            $description = trim(($ai['summary'] ? $ai['summary']."\n\n— — —\n" : '').Str::limit(MailText::forDescription($this->stripQuoted((string) $email->body_text)), 9000));
 
             $ticket = Ticket::create([
                 'project_id' => $projectId,
