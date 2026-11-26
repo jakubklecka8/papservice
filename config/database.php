@@ -76,6 +76,7 @@ return [
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
             'strict' => false,
+            'options' => extension_loaded('pdo_mysql') ? [PDO::ATTR_TIMEOUT => 8] : [],
         ],
 
         'mariadb' => [
