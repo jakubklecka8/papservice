@@ -20,7 +20,7 @@ class Ticket extends Model
     protected $fillable = [
         'uuid', 'external_ref', 'project_id', 'end_customer_id', 'location_id', 'service_type', 'priority', 'status', 'source', 'needs_review',
         'title', 'description', 'created_by', 'reporter_name', 'reporter_email', 'reporter_phone',
-        'assigned_technician_id', 'assigned_by', 'assigned_at', 'due_at', 'closed_at', 'legacy_id', 'legacy_status',
+        'assigned_technician_id', 'assigned_by', 'assigned_at', 'due_at', 'closed_at', 'client_report_sent_at', 'client_report_by', 'legacy_id', 'legacy_status',
     ];
 
     protected function casts(): array
@@ -31,6 +31,7 @@ class Ticket extends Model
             'assigned_at' => 'datetime',
             'due_at' => 'datetime',
             'closed_at' => 'datetime',
+            'client_report_sent_at' => 'datetime',
         ];
     }
 

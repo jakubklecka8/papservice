@@ -62,6 +62,7 @@ class TicketResource extends JsonResource
             'due_at' => $this->due_at?->toIso8601String(),
             'assigned_at' => $this->assigned_at?->toIso8601String(),
             'closed_at' => $this->closed_at?->toIso8601String(),
+            'client_report_sent_at' => $this->when(! $customerOnly, fn () => $this->client_report_sent_at?->toIso8601String()),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             'visits' => $this->when(! $customerOnly && $this->relationLoaded('visits'), fn () => VisitResource::collection($this->visits)),

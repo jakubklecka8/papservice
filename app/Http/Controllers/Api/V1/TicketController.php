@@ -10,6 +10,7 @@ use App\Http\Resources\TicketResource;
 use App\Models\Location;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Mail\ClientReportMailer;
 use App\Services\TechnicianNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -237,6 +238,39 @@ class TicketController extends Controller
         }
 
         return new TicketResource($ticket->refresh()->load(['project', 'location', 'technician']));
+    }
+
+    /** Návrh reportu klientovi (odpověď na původní e-mail) */
+    public function clientReportDraft(Request $request, Ticket $ticket, ClientReportMailer $mailer): JsonResponse
+    {
+        $this->authorize('manage', $ticket);
+        try {
+            return response()->json(['data' => $mailer->draft($ticket)]);
+        } catch (\RuntimeException $e) {
+            abort(422, $e->getMessage());
+        }
+    }
+
+    /** Odeslat report klientovi – popis, km, vybrané fotky, ve vlákně původního e-mailu (RITM) */
+    public function clientReportSend(Request $request, Ticket $ticket, ClientReportMailer $mailer): TicketResource
+    {
+        $this->authorize('manage', $ticket);
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:20000'],
+            'photos' => ['array', 'max:30'],
+            'photos.*' => ['uuid'],
+        ]);
+
+        try {
+            $mailer->send($ticket, $data['body'], $data['photos'] ?? [], $request->user());
+        } catch (\RuntimeException $e) {
+            abort(422, $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+            abort(502, 'Odeslání se nepovedlo: '.$e->getMessage());
+        }
+
+        return new TicketResource($ticket->fresh()->load(['project', 'location', 'technician']));
     }
 
     /** Ruční změna stavu (čeká, zrušeno, znovu otevřeno). Uzavření jde přes schválení protokolu. */

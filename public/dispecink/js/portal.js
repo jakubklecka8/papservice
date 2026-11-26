@@ -64,7 +64,8 @@ const T = {
     folder: 'Složka', fromAddress: 'Odesílatel (e-mail)', fromName: 'Odesílatel (jméno)', dedicated: 'Jen na požadavky',
     dedicatedHint: 'Ne = AI rozliší, co je požadavek; ostatní pošta se jen zaznamená.', autoReply: 'Posílat potvrzení s číslem',
     pwKeep: 'prázdné = beze změny', testConn: 'Otestovat připojení', fetchNow: 'Načíst teď', lastCheck: 'Naposledy',
-    connOk: 'OK', saveFirst: 'Nejdřív ulož.', parser: 'Zpracování e-mailů', parsers: { ai: 'AI (obecné e-maily, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (pevný formát)' },
+    connOk: 'OK', saveFirst: 'Nejdřív ulož.', reportBtn: 'Odeslat report klientovi', reportResend: 'Odeslat report znovu', reportSent: 'Report odeslán', reportTo: 'Komu', reportBody: 'Text', reportPhotos: 'Fotky v příloze', reportSend: 'Odeslat', reportNoSmtp: 'Schránka nemá nastavené odesílání (SMTP) – doplň v Nastavení.',
+    parser: 'Zpracování e-mailů', parsers: { ai: 'AI (obecné e-maily, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (pevný formát)' },
     parserHint: 'RITM: zpracují se jen e-maily s RITM v předmětu; stejné RITM = stejná zakázka; neznámý box se založí sám.', extId: 'Externí ID (box ID)',
   },
   pl: {
@@ -127,7 +128,8 @@ const T = {
     folder: 'Folder', fromAddress: 'Nadawca (e-mail)', fromName: 'Nadawca (nazwa)', dedicated: 'Tylko zgłoszenia',
     dedicatedHint: 'Nie = AI rozpozna, co jest zgłoszeniem; pozostała poczta zostanie tylko zapisana.', autoReply: 'Wysyłaj potwierdzenie z numerem',
     pwKeep: 'puste = bez zmian', testConn: 'Testuj połączenie', fetchNow: 'Pobierz teraz', lastCheck: 'Ostatnio',
-    connOk: 'OK', saveFirst: 'Najpierw zapisz.', parser: 'Przetwarzanie e-maili', parsers: { ai: 'AI (ogólne e-maile, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (stały format)' },
+    connOk: 'OK', saveFirst: 'Najpierw zapisz.', reportBtn: 'Wyślij raport klientowi', reportResend: 'Wyślij raport ponownie', reportSent: 'Raport wysłany', reportTo: 'Do', reportBody: 'Treść', reportPhotos: 'Zdjęcia w załączniku', reportSend: 'Wyślij', reportNoSmtp: 'Skrzynka nie ma ustawionej wysyłki (SMTP) – uzupełnij w Ustawieniach.',
+    parser: 'Przetwarzanie e-maili', parsers: { ai: 'AI (ogólne e-maile, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (stały format)' },
     parserHint: 'RITM: przetwarzane są tylko e-maile z RITM w temacie; ten sam RITM = to samo zlecenie; nieznany box zostanie założony automatycznie.', extId: 'ID zewnętrzne (ID boxu)',
   },
 };
@@ -776,6 +778,8 @@ async function renderTicket(id) {
           <dl class="kv"><dt>${esc(t('from_'))}</dt><dd>${esc(tk.email.from)}</dd><dt>${esc(t('subject'))}</dt><dd>${esc(tk.email.subject || '—')}</dd>
           <dt>${esc(t('received'))}</dt><dd>${esc(fmt(tk.email.received_at))}</dd></dl>
           <div class="small ${tk.email.confirmation_sent_at ? '' : 'muted'}" style="margin-top:8px">${tk.email.confirmation_sent_at ? '✓ ' + esc(t('confirmSent')) + ' · ' + esc(fmt(tk.email.confirmation_sent_at)) : esc(t('confirmNotSent'))}</div>
+          ${tk.client_report_sent_at ? `<div class="small" style="margin-top:4px">📤 ${esc(t('reportSent'))} · ${esc(fmt(tk.client_report_sent_at))}</div>` : ''}
+          ${manage ? `<div class="btn-row" style="margin-top:10px"><button class="btn ${tk.client_report_sent_at ? '' : 'primary'}" id="btn-report">📤 ${esc(tk.client_report_sent_at ? t('reportResend') : t('reportBtn'))}</button></div>` : ''}
           <a class="small" href="#/emails?open=${tk.email.id}">${esc(t('navEmails'))} →</a></div>` : ''}
         ${history ? `<div class="card"><h2>${esc(t('history'))}</h2><div class="history">${history}</div></div>` : ''}
       </div>
@@ -784,6 +788,8 @@ async function renderTicket(id) {
         <div class="card"><h2>${esc(t('visits'))}</h2>${visitsHtml || `<div class="muted">${esc(t('noVisits'))}</div>`}</div>
       </div>
     </div>`;
+
+  el.querySelector('#btn-report')?.addEventListener('click', () => clientReport(id));
 
   el.querySelectorAll('[data-useloc]').forEach((b) => {
     b.onclick = async () => {
@@ -853,6 +859,36 @@ async function renderTicket(id) {
       }
     };
   });
+}
+
+async function clientReport(ticketId) {
+  let d;
+  try { d = (await api('GET', `/tickets/${ticketId}/client-report`)).data; } catch (e) { toast(errText(e), true); return; }
+  const ok = await modal(`
+    <h3>📤 ${esc(t('reportBtn'))}</h3>
+    ${d.can_send ? '' : `<div class="banner err small">${esc(t('reportNoSmtp'))}</div>`}
+    <dl class="kv"><dt>${esc(t('reportTo'))}</dt><dd>${esc(d.to)}</dd><dt>${esc(t('subject'))}</dt><dd>${esc(d.subject)}</dd></dl>
+    <label class="f" style="margin-top:10px"><span>${esc(t('reportBody'))}</span><textarea id="rb" style="min-height:260px">${esc(d.body)}</textarea></label>
+    ${d.photos.length ? `<div class="f"><span style="display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:6px">${esc(t('reportPhotos'))}</span>
+      <div class="photos">${d.photos.map((p) => `<div class="photo"><img data-att="${esc(p.uuid)}" alt=""><label><input type="checkbox" data-ph="${esc(p.uuid)}" checked> ✓</label></div>`).join('')}</div></div>` : ''}
+    <div class="banner err" id="rerr" hidden></div>
+    <div class="modal-foot"><button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary" id="rsend" ${d.can_send ? '' : 'disabled'}>${esc(t('reportSend'))}</button></div>`,
+  (dlg, close) => {
+    dlg.querySelectorAll('img[data-att]').forEach((img) => loadImg(img.dataset.att, img));
+    dlg.querySelector('#rsend').onclick = async (e) => {
+      e.target.disabled = true;
+      try {
+        await api('POST', `/tickets/${ticketId}/client-report`, {
+          body: dlg.querySelector('#rb').value,
+          photos: [...dlg.querySelectorAll('[data-ph]:checked')].map((c) => c.dataset.ph),
+        });
+        close(true);
+      } catch (ex) {
+        const err = dlg.querySelector('#rerr'); err.textContent = errText(ex); err.hidden = false; e.target.disabled = false;
+      }
+    };
+  });
+  if (ok) { toast(t('reportSent')); renderTicket(ticketId); }
 }
 
 async function editTicket(tk) {

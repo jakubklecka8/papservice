@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\Role;
+use App\Enums\TicketStatus;
 use App\Models\Attachment;
 use App\Models\InboundEmail;
 use App\Models\Location;
@@ -13,6 +14,7 @@ use App\Services\Mail\MailboxImporter;
 use App\Services\Mail\MailboxReader;
 use App\Services\Mail\ParsedEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
@@ -301,6 +303,46 @@ class EmailIntakeTest extends TestCase
         Sanctum::actingAs($this->dispecer);
         $this->postJson("/api/v1/emails/{$email->id}/action", ['action' => 'reprocess'])->assertOk()->assertJsonPath('data.status', 'ticket');
         $this->assertSame($this->locA->id, Ticket::sole()->location_id); // obecné zpracování našlo kód ZB-1234
+    }
+
+    public function test_client_report_replies_to_ritm_thread_with_photos_and_km(): void
+    {
+        $this->mailbox->update(['parser' => 'zasilkovna_ritm', 'auto_reply' => false]);
+        $this->reader->messages[] = $this->msg(10, '<r1@packeta>', 'RITM0012345 - Service request', $this->ritmBody());
+        $this->runImport();
+        $ticket = Ticket::sole();
+        $ticket->update(['assigned_technician_id' => $this->tech1->id, 'status' => TicketStatus::Assigned]);
+
+        Sanctum::actingAs($this->tech1);
+        $vu = $this->uuid();
+        $this->putJson("/api/v1/tickets/{$ticket->id}/visits/$vu", [
+            'arrived_at' => now()->subHour()->toIso8601String(), 'km' => 37.5, 'work_description' => 'Výměna zámku schránky 12', 'test_result' => 'ok',
+        ])->assertCreated();
+        $photo = $this->post('/api/v1/attachments', [
+            'uuid' => $this->uuid(), 'attachable_type' => 'visit', 'attachable_id' => $vu,
+            'file' => UploadedFile::fake()->image('hotovo.jpg'),
+        ], ['Accept' => 'application/json'])->json('data.uuid');
+        $this->postJson("/api/v1/visits/$vu/submit")->assertOk();
+
+        Sanctum::actingAs($this->dispecer);
+        $draft = $this->getJson("/api/v1/tickets/{$ticket->id}/client-report")->assertOk()->json('data');
+        $this->assertStringContainsString('RITM0012345', $draft['subject']);
+        $this->assertStringContainsString('Výměna zámku schránky 12', $draft['body']);
+        $this->assertStringContainsString('37,5 km', $draft['body']);
+        $this->assertSame([$photo], array_column($draft['photos'], 'uuid'));
+
+        $this->postJson("/api/v1/tickets/{$ticket->id}/client-report", ['body' => $draft['body']."\nDoplněno.", 'photos' => [$photo]])
+            ->assertOk()->assertJsonPath('data.client_report_sent_at', fn ($v) => $v !== null);
+
+        $mail = end($this->sent);
+        $this->assertSame('Re: RITM0012345 - Service request', $mail->getSubject());
+        $this->assertStringContainsString('r1@packeta', $mail->getHeaders()->get('In-Reply-To')->getBodyAsString());
+        $this->assertStringContainsString('Doplněno.', $mail->getTextBody());
+        $this->assertCount(1, $mail->getAttachments());
+
+        // technik report odeslat nesmí
+        Sanctum::actingAs($this->tech1);
+        $this->postJson("/api/v1/tickets/{$ticket->id}/client-report", ['body' => 'x'])->assertForbidden();
     }
 
     public function test_mailbox_admin_and_email_access(): void

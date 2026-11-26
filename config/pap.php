@@ -13,6 +13,9 @@ return [
     // Kolik sekund smí jeden běh cronu zpracovávat frontu
     'tick_seconds' => (int) env('PAP_TICK_SECONDS', 45),
 
+    // Transport pro e-maily ze schránek (potvrzení, reporty). 'log' = nic neodesílat, jen zapsat do logu (testování).
+    'confirmation_transport' => env('PAP_MAIL_TRANSPORT', 'smtp'),
+
     // Kontakt v hlavičce push notifikací (mailto: nebo URL)
     'vapid_subject' => env('PAP_VAPID_SUBJECT', 'mailto:servis@servicepap.com'),
 

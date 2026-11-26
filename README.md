@@ -83,6 +83,9 @@ Dispečink → **Nastavení**: schránky (každá patří k projektu) a API klí
 - nejasná provozovna → zakázka s „⚠ ověřit provozovnu“, dispečer vybere z kandidátů
 - potvrzení s číslem odejde až po uložení zakázky, jednou, ve stejném vlákně, přes SMTP schránky (CZ/PL podle jazyka e-mailu)
 - schránka v režimu **Zásilkovna RITM**: čtou se jen e-maily s RITM v předmětu (pevný formát Service type / Locker / Location / Priority / Description, bez AI); stejné RITM = stejná zakázka; neznámý box se založí jako provozovna i s adresou a GPS
+- formáty Zásilkovny: anglický ServiceNow (Service type / Locker / Location / Priority / Description) i starý český (Z-BOX: …, ID: …, Servisní akce, Zásilka, Doplňující komentář)
+- **Report klientovi**: v zakázce z e-mailu tlačítko „📤 Odeslat report klientovi“ – odpověď do vlákna původního e-mailu (přesné RITM), text předvyplněný z návštěvy (práce, oprava, test, díly, km), upravitelný, fotky z návštěvy jako přílohy
+- `PAP_MAIL_TRANSPORT=log` v `.env` = nic se reálně neodešle (na zkoušení se skutečnou schránkou)
 - **E-maily** v dispečinku: přehled, k řešení (nejasné, chyby, ignorované), ruční „Vytvořit zakázku“
 
 ## Sklady (M4)
