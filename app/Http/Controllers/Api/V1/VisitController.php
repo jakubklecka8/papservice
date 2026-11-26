@@ -7,6 +7,7 @@ use App\Enums\TicketStatus;
 use App\Enums\VisitStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\VisitResource;
+use App\Models\InstructionVersion;
 use App\Models\Ticket;
 use App\Models\Visit;
 use App\Services\StockService;
@@ -39,6 +40,7 @@ class VisitController extends Controller
             'test_result' => ['nullable', Rule::enum(TestResult::class)],
             'test_note' => ['nullable', 'string', 'max:2000'],
             'instruction_ref' => ['nullable', 'string', 'max:255'],
+            'instruction_version_id' => ['nullable', 'integer', 'exists:instruction_versions,id'],
             'client_updated_at' => ['nullable', 'date'],
             'signer_name' => ['nullable', 'string', 'max:255'],
             'checklist' => ['nullable', 'array', 'max:100'],
@@ -88,6 +90,11 @@ class VisitController extends Controller
             $fields = collect($data)->except('parts')->all();
             if (empty($fields['minutes_on_site']) && ! empty($fields['arrived_at']) && ! empty($fields['departed_at'])) {
                 $fields['minutes_on_site'] = (int) $fields['arrived_at']->diffInMinutes($fields['departed_at']);
+            }
+            // vybraný návod → do protokolu jde jeho název a verze
+            if (! empty($fields['instruction_version_id'])) {
+                $iv = InstructionVersion::with('instruction:id,title')->find($fields['instruction_version_id']);
+                $fields['instruction_ref'] = $iv ? $iv->instruction->title.' (v'.$iv->version.')' : ($fields['instruction_ref'] ?? null);
             }
             if (array_key_exists('checklist', $fields)) {
                 $fields['checklist'] = $this->normalizeChecklist($ticket, $fields['checklist'] ?? []);

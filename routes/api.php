@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\ExpenseController;
+use App\Http\Controllers\Api\V1\InstructionController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\PayrollController;
@@ -96,6 +97,15 @@ Route::prefix('v1')->group(function () {
         Route::post('checklists', [SetupController::class, 'storeChecklist']);
         Route::patch('checklists/{checklist}', [SetupController::class, 'updateChecklist']);
         Route::delete('checklists/{checklist}', [SetupController::class, 'destroyChecklist']);
+
+        Route::get('instructions', [InstructionController::class, 'index']);
+        Route::post('instructions', [InstructionController::class, 'store']);
+        Route::get('instructions/{instruction}', [InstructionController::class, 'show']);
+        Route::patch('instructions/{instruction}', [InstructionController::class, 'update']);
+        Route::post('instructions/{instruction}/draft', [InstructionController::class, 'saveDraft']);
+        Route::post('instruction-versions/{version}/publish', [InstructionController::class, 'publish']);
+        Route::delete('instruction-versions/{version}', [InstructionController::class, 'discardDraft']);
+        Route::post('instruction-versions/{version}/rate', [InstructionController::class, 'rate']);
 
         Route::get('expenses', [ExpenseController::class, 'index']);
         Route::post('expenses', [ExpenseController::class, 'store']);

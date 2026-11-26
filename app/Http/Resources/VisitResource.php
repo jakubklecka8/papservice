@@ -25,6 +25,7 @@ class VisitResource extends JsonResource
             'test_result' => $this->test_result?->value,
             'test_note' => $this->test_note,
             'instruction_ref' => $this->instruction_ref,
+            'instruction_version_id' => $this->instruction_version_id,
             'checklist' => $this->checklist ?? [],
             'signer_name' => $this->signer_name,
             'signature_technician' => $this->signature_technician,

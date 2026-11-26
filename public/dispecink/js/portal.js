@@ -252,6 +252,44 @@ async function downloadAuthed(path, name) {
   } catch (e) { toast(errText(e), true); }
 }
 
+// ---- krok 10: návody
+Object.assign(T.cs, {
+  navInstructions: 'Návody', newInstruction: 'Nový návod', instrSearch: 'Hledat závadu, díl, klíčové slovo…', deviceTypeF: 'Druh zařízení',
+  symptom: 'Jak se závada projevuje', steps: 'Postup', stepsHelp: 'Každý krok na nový řádek. Větev pod krokem: řádek začínající → „podmínka: co dál“.',
+  instrNote: 'Poznámka / bezpečnost', changeNote: 'Co se změnilo', tags: 'Klíčová slova', saveDraft: 'Uložit koncept', saveAndPublish: 'Uložit a zveřejnit',
+  publish: 'Zveřejnit', discardDraft: 'Zahodit koncept', draft: 'koncept', versions: 'Verze', vstat: { draft: 'Koncept', published: 'Zveřejněno', archived: 'Archiv' },
+  helpfulPct: 'pomohl', usedN: 'použito', feedback: 'Zpětná vazba techniků', allDevices: 'Všechna zařízení', inactiveI: 'skrytý', editInstr: 'Upravit (nová verze)',
+  noInstr: 'Žádný návod.', instrHidden: 'Skrýt před techniky', instrShow: 'Zobrazit technikům',
+});
+Object.assign(T.pl, {
+  navInstructions: 'Instrukcje', newInstruction: 'Nowa instrukcja', instrSearch: 'Szukaj usterki, części, słowa…', deviceTypeF: 'Rodzaj urządzenia',
+  symptom: 'Objawy usterki', steps: 'Procedura', stepsHelp: 'Każdy krok w nowej linii. Rozgałęzienie pod krokiem: linia zaczynająca się od → „warunek: co dalej“.',
+  instrNote: 'Uwaga / bezpieczeństwo', changeNote: 'Co się zmieniło', tags: 'Słowa kluczowe', saveDraft: 'Zapisz szkic', saveAndPublish: 'Zapisz i opublikuj',
+  publish: 'Opublikuj', discardDraft: 'Odrzuć szkic', draft: 'szkic', versions: 'Wersje', vstat: { draft: 'Szkic', published: 'Opublikowano', archived: 'Archiwum' },
+  helpfulPct: 'pomogła', usedN: 'użyto', feedback: 'Opinie techników', allDevices: 'Wszystkie urządzenia', inactiveI: 'ukryta', editInstr: 'Edytuj (nowa wersja)',
+  noInstr: 'Brak instrukcji.', instrHidden: 'Ukryj przed technikami', instrShow: 'Pokaż technikom',
+});
+/** Postup ↔ text: krok na řádek, větve „→ podmínka: výsledek“ */
+function stepsToText(steps) {
+  return (steps || []).map((st) => [st.text, ...(st.outcomes || []).map((o) => `→ ${o.if}: ${o.then}`)].join('\n')).join('\n');
+}
+function textToSteps(txt) {
+  const out = [];
+  for (const raw of txt.split('\n')) {
+    const l = raw.trim();
+    if (!l) continue;
+    const m = l.match(/^(?:→|->|-->)\s*(.+)$/);
+    if (m && out.length) {
+      const i = m[1].indexOf(':');
+      out[out.length - 1].outcomes.push(i > 0 ? { if: m[1].slice(0, i).trim(), then: m[1].slice(i + 1).trim() || '—' } : { if: m[1].trim(), then: '—' });
+    } else out.push({ text: l.replace(/^\d+[.)]\s*/, ''), outcomes: [] });
+  }
+  return out;
+}
+function stepsHtml(steps) {
+  return `<ol class="instr-steps">${(steps || []).map((st) => `<li><div>${esc(st.text)}</div>${(st.outcomes || []).length ? `<ul>${st.outcomes.map((o) => `<li><strong>${esc(o.if)}</strong> → ${esc(o.then)}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
+}
+
 const t = (k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), T[lang]) ?? k;
 
 // ================================================================ API
@@ -422,6 +460,8 @@ async function route() {
   if (path === '/billing' && canMoney()) return renderBilling(q);
   if (path === '/planning' && canPlan()) return renderPlanning(q);
   if (path === '/expenses' && canDevices()) return renderExpensesAdmin(q);
+  if (path === '/instructions' && canDevices()) return renderInstructions(q);
+  if ((m = path.match(/^\/instructions\/(\d+)$/)) && canDevices()) return renderInstruction(m[1]);
   if (path === '/devices' && canDevices()) return renderDevices(q);
   if (path === '/settings' && isAdmin()) return renderSettings();
   if (path === '/users' && isAdmin()) return renderUsers();
@@ -435,6 +475,7 @@ function shell(active) {
     canPlan() ? ['planning', '#/planning', '📅', t('navPlanning')] : null,
     ['locations', '#/locations', '📍', t('navLocations')],
     canDevices() ? ['devices', '#/devices', '🔧', t('navDevices')] : null,
+    canDevices() ? ['instructions', '#/instructions', '📘', t('navInstructions')] : null,
     has('admin', 'dispecer', 'ekonom', 'spolecnik') ? ['stock', '#/stock', '📦', t('navStock')] : null,
     has('admin', 'dispecer') ? ['emails', '#/emails', '📧', t('navEmails')] : null,
     canDevices() ? ['expenses', '#/expenses', '🧾', t('navExpenses')] : null,
@@ -2838,6 +2879,151 @@ async function renderProjectCosts(q) {
         <td class="num"><strong style="color:${x.margin < 0 ? 'var(--bad)' : 'var(--ok)'}">${esc(money(x.margin, x.currency))}</strong>${x.revenue ? `<div class="muted small">${Math.round(x.margin / x.revenue * 100)} %</div>` : ''}</td></tr>`).join('')}
     </tbody></table>` : `<div class="card empty">—</div>`}</div>`;
   el.querySelector('#c-month').onchange = (e) => { location.hash = '#/billing?tab=costs&month=' + e.target.value; };
+}
+
+
+// ================================================================ návody (krok 10)
+
+async function renderInstructions(q) {
+  const el = shell('instructions');
+  const setQ = (ch) => { const n = new URLSearchParams(q); Object.entries(ch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); location.hash = '#/instructions?' + n; };
+  const project = q.get('project') || '';
+  const search = q.get('q') || '';
+  const params = new URLSearchParams({ all: '1' });
+  if (project) params.set('project_id', project);
+  if (search) params.set('q', search);
+  let r, prj;
+  try { [r, prj] = await Promise.all([api('GET', '/instructions?' + params), projects()]); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+  const canNew = has('admin', 'dispecer');
+  el.innerHTML = `
+    <div class="page-head"><h1>📘 ${esc(t('navInstructions'))}</h1>${canNew ? `<button class="btn primary" id="i-new">➕ ${esc(t('newInstruction'))}</button>` : ''}</div>
+    <div class="filters">
+      <select id="f-project"><option value="">${esc(t('allProjects'))}</option>${prj.map((p) => `<option value="${p.id}" ${String(p.id) === project ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+      <input type="search" id="f-q" placeholder="${esc(t('instrSearch'))}" value="${esc(search)}">
+    </div>
+    ${r.data.length ? `<div class="instr-grid">${r.data.map((x) => `
+      <a class="card instr-card" href="#/instructions/${x.id}">
+        <div class="instr-head"><strong>${esc(x.title)}</strong>${x.version ? `<span class="chip draft">v${x.version}</span>` : `<span class="chip waiting">${esc(t('draft'))}</span>`}${x.has_draft && x.version ? `<span class="chip waiting">${esc(t('draft'))}</span>` : ''}${x.is_active ? '' : chip('off', t('inactiveI'))}</div>
+        <div class="muted small">${esc(x.project?.name || '—')}${x.device_type ? ' · ' + esc(x.device_type) : ''}</div>
+        ${x.symptom ? `<div class="small" style="margin-top:6px">${esc(x.symptom)}</div>` : ''}
+        <div class="muted small" style="margin-top:6px">${x.rating?.total ? `👍 ${Math.round(x.rating.helpful / x.rating.total * 100)} % ${esc(t('helpfulPct'))} (${x.rating.total}) · ` : ''}${x.rating?.used ? `${esc(t('usedN'))} ${x.rating.used}×` : ''}</div>
+      </a>`).join('')}</div>` : `<div class="card empty">${esc(t('noInstr'))}</div>`}`;
+  el.querySelector('#f-project').onchange = (e) => setQ({ project: e.target.value });
+  el.querySelector('#f-q').addEventListener('input', debounce((e) => setQ({ q: e.target.value.trim() }), 450));
+  if (search) { const i = el.querySelector('#f-q'); i.focus(); i.setSelectionRange(search.length, search.length); }
+  el.querySelector('#i-new')?.addEventListener('click', () => instructionEditor(null, null, prj, project));
+}
+
+async function renderInstruction(id) {
+  const el = shell('instructions');
+  let x, prj;
+  try { [x, prj] = await Promise.all([api('GET', `/instructions/${id}`).then((r) => r.data), projects()]); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+  const pub = x.versions.find((v) => v.status === 'published');
+  const draft = x.versions.find((v) => v.status === 'draft');
+  const vHtml = (v) => `
+    ${v.symptom ? `<p><strong>${esc(t('symptom'))}:</strong> ${esc(v.symptom)}</p>` : ''}
+    ${stepsHtml(v.steps)}
+    ${v.note ? `<div class="banner warn small">⚠ ${esc(v.note)}</div>` : ''}`;
+  el.innerHTML = `
+    <div class="page-head"><h1>📘 ${esc(x.title)}</h1>
+      ${x.can_manage ? `<button class="btn" id="i-meta">✎ ${esc(t('edit'))}</button><button class="btn primary" id="i-edit">📝 ${esc(t('editInstr'))}</button>` : ''}</div>
+    <p class="muted" style="margin-top:-8px">${esc(x.project?.name || '—')}${x.device_type ? ' · ' + esc(x.device_type) : ''}${x.tags ? ' · ' + esc(x.tags) : ''}${x.is_active ? '' : ' · ' + esc(t('inactiveI'))}</p>
+    <div class="grid-2">
+      <div>
+        ${draft ? `<div class="card draft-card"><h2>📝 ${esc(t('vstat.draft'))} v${draft.version}<span class="sp"></span>
+          ${x.can_manage ? `<button class="btn sm success" data-pub="${draft.id}">✓ ${esc(t('publish'))}</button><button class="btn sm danger" data-del="${draft.id}">${esc(t('discardDraft'))}</button>` : ''}</h2>
+          ${draft.change_note ? `<p class="small"><strong>${esc(t('changeNote'))}:</strong> ${esc(draft.change_note)}</p>` : ''}${vHtml(draft)}</div>` : ''}
+        ${pub ? `<div class="card"><h2>✅ v${pub.version} <span class="muted small" style="font-weight:400">${esc(fmt(pub.published_at, false))}${pub.publisher ? ' · ' + esc(pub.publisher) : ''}</span></h2>${vHtml(pub)}</div>` : ''}
+      </div>
+      <div>
+        <div class="card"><h2>${esc(t('feedback'))}</h2>
+          ${x.comments.length ? `<div class="history">${x.comments.map((c) => `<div>${c.helpful ? '👍' : '👎'} <strong>${esc(c.user || '')}</strong> · v${c.version} · ${esc(fmt(c.at, false))}<div class="small">${esc(c.comment)}</div></div>`).join('')}</div>` : '<p class="muted">—</p>'}
+        </div>
+        <div class="card"><h2>${esc(t('versions'))}</h2>
+          <table class="tbl no-resp"><tbody>${x.versions.map((v) => `<tr><td><strong>v${v.version}</strong></td><td>${chip(v.status === 'published' ? 'approved' : v.status === 'draft' ? 'waiting' : 'closed', t('vstat.' + v.status))}</td>
+            <td class="small">${esc(v.change_note || '')}<div class="muted">${esc(v.author || '')} · ${esc(fmt(v.published_at || v.updated_at, false))}</div></td>
+            <td class="small">${v.rating?.total ? `👍 ${v.rating.helpful}/${v.rating.total}` : ''}${v.rating?.used ? `<div class="muted">${esc(t('usedN'))} ${v.rating.used}×</div>` : ''}</td></tr>`).join('')}</tbody></table>
+        </div>
+      </div>
+    </div>`;
+  el.querySelector('#i-edit')?.addEventListener('click', () => instructionEditor(x, draft || pub, prj));
+  el.querySelector('#i-meta')?.addEventListener('click', () => instructionMeta(x, prj));
+  el.querySelectorAll('[data-pub]').forEach((b) => { b.onclick = async () => { try { await api('POST', `/instruction-versions/${b.dataset.pub}/publish`); toast(t('saved')); route(); } catch (e) { toast(errText(e), true); } }; });
+  el.querySelectorAll('[data-del]').forEach((b) => {
+    b.onclick = async () => {
+      if (!(await confirmModal(t('discardDraft') + '?'))) return;
+      try { await api('DELETE', `/instruction-versions/${b.dataset.del}`); toast(t('saved')); location.hash = x.versions.length > 1 ? `#/instructions/${x.id}` : '#/instructions'; route(); } catch (e) { toast(errText(e), true); }
+    };
+  });
+}
+
+async function instructionMeta(x, prj) {
+  await modal(`
+    <h3>✎ ${esc(x.title)}</h3>
+    <form id="imf"><div class="form-grid">
+      <label class="f full"><span class="req">${esc(t('name'))}</span><input type="text" name="title" required value="${esc(x.title)}"></label>
+      <label class="f"><span>${esc(t('project'))}</span><select name="project_id"><option value="">—</option>${prj.map((p) => `<option value="${p.id}" ${x.project_id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('deviceTypeF'))}</span><input type="text" name="device_type" value="${esc(x.device_type || '')}"></label>
+      <label class="f full"><span>${esc(t('tags'))}</span><input type="text" name="tags" value="${esc(x.tags || '')}"></label>
+      <label class="f"><span>${esc(t('active'))}</span><select name="is_active"><option value="1">${esc(t('instrShow'))}</option><option value="0" ${x.is_active ? '' : 'selected'}>${esc(t('instrHidden'))}</option></select></label>
+    </div><div class="banner err" id="imerr" hidden></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#imf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await api('PATCH', `/instructions/${x.id}`, { title: f.title.value.trim(), project_id: f.project_id.value ? Number(f.project_id.value) : null,
+          device_type: f.device_type.value.trim() || null, tags: f.tags.value.trim() || null, is_active: f.is_active.value === '1' });
+        close(true); toast(t('saved')); route();
+      } catch (ex) { const er = d.querySelector('#imerr'); er.textContent = errText(ex); er.hidden = false; }
+    };
+  });
+}
+
+/** Editor obsahu: nový návod (x = null) nebo nová verze / úprava konceptu */
+async function instructionEditor(x, base, prj, defaultProject) {
+  const isNew = !x;
+  await modal(`
+    <h3>📝 ${esc(isNew ? t('newInstruction') : x.title + ' – ' + t('editInstr'))}</h3>
+    <form id="ief"><div class="form-grid">
+      ${isNew ? `
+        <label class="f full"><span class="req">${esc(t('name'))}</span><input type="text" name="title" required placeholder="Nejdou otevřít dvířka schránky"></label>
+        <label class="f"><span>${esc(t('project'))}</span><select name="project_id"><option value="">—</option>${prj.filter((p) => isAdmin() || managesProject(p.id)).map((p) => `<option value="${p.id}" ${String(p.id) === String(defaultProject || '') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <label class="f"><span>${esc(t('deviceTypeF'))}</span><input type="text" name="device_type" placeholder="Z-BOX"></label>
+        <label class="f full"><span>${esc(t('tags'))}</span><input type="text" name="tags" placeholder="zámek, silová deska"></label>` : ''}
+      <label class="f full"><span>${esc(t('symptom'))}</span><input type="text" name="symptom" value="${esc(base?.symptom || '')}"></label>
+      <label class="f full"><span class="req">${esc(t('steps'))}</span><textarea name="steps" rows="10" required placeholder="Pořádně bouchnout do dvířek (špatný kontakt na zámku)&#10;Prohodit zapojení na silové desce&#10;→ Dvířka se otevřou: vadná silová deska – vyměnit&#10;→ Neotevřou se: vadný zámek – vyměnit">${esc(stepsToText(base?.steps))}</textarea>
+        <small class="muted">${esc(t('stepsHelp'))}</small></label>
+      <label class="f full"><span>${esc(t('instrNote'))}</span><input type="text" name="note" value="${esc(base?.note || '')}"></label>
+      ${isNew ? '' : `<label class="f full"><span>${esc(t('changeNote'))}</span><input type="text" name="change_note" value="${esc(base?.status === 'draft' ? base.change_note || '' : '')}"></label>`}
+    </div>
+    <div class="instr-preview card" id="ie-prev"></div>
+    <div class="banner err" id="ieerr" hidden></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><span class="sp"></span>
+      <button type="button" class="btn" data-save="0">${esc(t('saveDraft'))}</button><button type="button" class="btn primary" data-save="1">✓ ${esc(t('saveAndPublish'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#ief');
+    const prev = () => { d.querySelector('#ie-prev').innerHTML = stepsHtml(textToSteps(f.steps.value)); };
+    f.steps.addEventListener('input', prev); prev();
+    d.querySelectorAll('[data-save]').forEach((b) => {
+      b.onclick = async () => {
+        const steps = textToSteps(f.steps.value);
+        if (!steps.length || (isNew && !f.title.value.trim())) { f.reportValidity(); return; }
+        const content = { symptom: f.symptom.value.trim() || null, steps, note: f.note.value.trim() || null, publish: b.dataset.save === '1' };
+        try {
+          if (isNew) {
+            const r = await api('POST', '/instructions', { ...content, title: f.title.value.trim(), project_id: f.project_id.value ? Number(f.project_id.value) : null,
+              device_type: f.device_type.value.trim() || null, tags: f.tags.value.trim() || null, change_note: 'První verze' });
+            close(true); toast(t('saved')); location.hash = '#/instructions/' + r.data.id;
+          } else {
+            await api('POST', `/instructions/${x.id}/draft`, { ...content, change_note: f.change_note.value.trim() || null });
+            close(true); toast(t('saved')); route();
+          }
+        } catch (ex) { const er = d.querySelector('#ieerr'); er.textContent = errText(ex); er.hidden = false; }
+      };
+    });
+  });
 }
 
 // ================================================================ start (až po definici všech konstant)

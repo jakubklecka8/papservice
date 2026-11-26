@@ -13,7 +13,7 @@ import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -117,6 +117,10 @@ function setTop(title, back = false) {
 function parseRoute() {
   const h = location.hash.replace(/^#\/?/, '');
   if (h === 'login') return { view: 'login' };
+  if (h.startsWith('instructions')) {
+    const im = h.match(/^instructions\/(\d+)/);
+    return { view: im ? 'instruction' : 'instructions', id: im?.[1], q: new URLSearchParams(h.split('?')[1] || '').get('q') || '' };
+  }
   if (h === 'expenses') return { view: 'expenses' };
   let em = h.match(/^expenses\/(new|\d+)$/);
   if (em) return { view: 'expense', id: em[1] };
@@ -142,6 +146,8 @@ async function route() {
   if (r.view === 'detail') return renderDetail(r.id);
   if (r.view === 'visit') return renderVisit(r.id);
   if (r.view === 'route') return renderRoute(r.date);
+  if (r.view === 'instructions') return renderInstructions(r.q);
+  if (r.view === 'instruction') return renderInstruction(r.id);
   if (r.view === 'expenses') return renderExpenses();
   if (r.view === 'expense') return renderExpenseForm(r.id);
   if (r.view === 'earnings') return renderEarnings(r.month);
@@ -472,7 +478,7 @@ function fromServer(v, ticketId) {
   return {
     uuid: v.uuid, ticketId: Number(ticketId), arrived_at: v.arrived_at, departed_at: v.departed_at, km: v.km,
     work_description: v.work_description || '', repair_description: v.repair_description || '',
-    test_result: v.test_result, test_note: v.test_note || '', instruction_ref: v.instruction_ref || '',
+    test_result: v.test_result, test_note: v.test_note || '', instruction_ref: v.instruction_ref || '', instruction_version_id: v.instruction_version_id || null,
     parts: (v.parts || []).map((p) => ({ ...p })),
     serverPhotos: (v.attachments || []).filter((a) => a.kind === 'photo').map((a) => a.uuid),
     signer_name: v.signer_name || '', signature_technician: v.signature_technician || null, signature_customer: v.signature_customer || null,
@@ -577,8 +583,12 @@ async function renderVisit(id) {
           <textarea data-f="work_description" ${dis}>${esc(d.work_description)}</textarea></label>
         <label class="field"><span>${esc(t('repair'))}</span>
           <textarea data-f="repair_description" ${dis}>${esc(d.repair_description)}</textarea></label>
-        <label class="field" style="margin-bottom:0"><span>${esc(t('instruction'))}</span>
-          <input type="text" data-f="instruction_ref" value="${esc(d.instruction_ref)}" ${dis}></label>
+        <div class="field" style="margin-bottom:0"><span style="display:block;font-size:14px;color:var(--muted);font-weight:600;margin-bottom:4px">${esc(t('instruction'))}</span>
+          ${d.instruction_version_id || d.instruction_ref ? `<div class="instr-picked">📘 <a href="#/instructions/${esc(d.instruction_id || '')}" ${d.instruction_id ? '' : 'onclick="return false"'}>${esc(d.instruction_ref || '')}</a>
+            ${readonly ? '' : `<button type="button" class="btn small" id="instr-clear">✕</button>`}</div>
+            ${d.instruction_version_id && !readonly ? `<div class="row" style="margin-top:6px"><span class="small muted" style="align-self:center">${esc(t('instrHelped'))}</span>
+              <button type="button" class="btn small ${d.instr_rated === true ? 'primary' : ''}" data-rate="1">👍</button><button type="button" class="btn small ${d.instr_rated === false ? 'primary' : ''}" data-rate="0">👎</button></div>` : ''}`
+          : (readonly ? '—' : `<button type="button" class="btn" id="instr-pick" style="width:100%">📘 ${esc(t('pickInstruction'))}</button>`)}</div>
       </div>
 
       <div class="card">
@@ -659,6 +669,27 @@ async function renderVisit(id) {
     for (const el of $app.querySelectorAll('[data-server]')) loadServerImage(el.dataset.server, el.querySelector('img'));
 
     if (readonly) return;
+
+    // návod
+    $app.querySelector('#instr-pick')?.addEventListener('click', async () => {
+      const pick = await pickInstruction(ticket);
+      if (!pick) return;
+      Object.assign(d, { instruction_version_id: pick.version_id, instruction_id: pick.id, instruction_ref: `${pick.title} (v${pick.version})`, instr_rated: null });
+      await persist(); save.flush(); draw();
+    });
+    $app.querySelector('#instr-clear')?.addEventListener('click', async () => {
+      Object.assign(d, { instruction_version_id: null, instruction_id: null, instruction_ref: '', instr_rated: null });
+      await persist(); save.flush(); draw();
+    });
+    for (const b of $app.querySelectorAll('[data-rate]')) {
+      b.onclick = async () => {
+        const helpful = b.dataset.rate === '1';
+        const comment = helpful ? null : await promptSheet(t('instrWhatMissing'));
+        if (!helpful && (comment === undefined || comment === null)) return;
+        d.instr_rated = helpful; await persist(); draw();
+        try { await save.flush(); await api.rateInstruction(d.instruction_version_id, { helpful, comment: comment || null, visit_uuid: d.uuid }); toast(t('thanks')); } catch { /* hodnocení není kritické */ }
+      };
+    }
 
     // podpisy
     for (const box of $app.querySelectorAll('[data-sig]')) {
@@ -843,6 +874,7 @@ function visitPayload(d) {
     test_result: d.test_result,
     test_note: d.test_note || null,
     instruction_ref: d.instruction_ref || null,
+    instruction_version_id: d.instruction_version_id || null,
     signer_name: d.signer_name || null,
     ...(d.checklistItems ? { checklist: (d.checklist || []).filter((c) => c.result || c.note).map((c) => ({ id: c.id, result: c.result || null, note: c.note || null })) } : {}),
     signature_technician: d.signature_technician || null,
@@ -871,6 +903,7 @@ function openMenu() {
   sheet(`
     <h3>${esc(state.me?.name || t('menu'))}</h3>
     <button class="menu-item" data-a="route">🧭 ${esc(t('routeToday'))}</button>
+    <button class="menu-item" data-a="instructions">📘 ${esc(t('instructions'))}</button>
     <button class="menu-item" data-a="expenses">🧾 ${esc(t('myExpenses'))}</button>
     <button class="menu-item" data-a="earnings">💰 ${esc(t('myEarnings'))}</button>
     <button class="menu-item" data-a="sync">⇅ ${esc(t('sync'))}</button>
@@ -887,6 +920,7 @@ function openMenu() {
     if (a === 'sync') openSync();
     if (a === 'route') location.hash = '#/route';
     if (a === 'expenses') location.hash = '#/expenses';
+    if (a === 'instructions') location.hash = '#/instructions';
     if (a === 'earnings') location.hash = '#/earnings';
     if (a === 'push') turnOnPush();
     if (a === 'pushtest') {
@@ -1159,4 +1193,101 @@ async function renderEarnings(month) {
       <div><span>${esc(fmtDate(e.date, false))} · ${esc(t('cat_' + e.category))}</span><strong>${esc(money(e.amount, e.currency))}</strong></div>`).join('')}</div>` : ''}`;
   document.getElementById('m-prev').onclick = () => shift(-1);
   document.getElementById('m-next').onclick = () => shift(1);
+}
+
+
+// ---------------------------------------------------------------- návody (krok 10)
+
+async function loadInstructions() {
+  try {
+    const list = (await api.instructions()).data;
+    await kv.set('instructions', list);
+    return { list, offline: false };
+  } catch {
+    return { list: (await kv.get('instructions')) || [], offline: true };
+  }
+}
+
+function instrMatch(x, q) {
+  if (!q) return true;
+  const hay = [x.title, x.tags, x.symptom, x.device_type, ...(x.steps || []).flatMap((s) => [s.text, ...(s.outcomes || []).flatMap((o) => [o.if, o.then])])]
+    .join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).every((w) => hay.includes(w));
+}
+
+function instrStepsHtml(steps) {
+  return `<ol class="instr-steps">${(steps || []).map((st) => `<li><div>${esc(st.text)}</div>${(st.outcomes || []).length ? `<ul>${st.outcomes.map((o) => `<li><strong>${esc(o.if)}</strong> → ${esc(o.then)}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
+}
+
+async function renderInstructions(q0) {
+  setTop('📘 ' + t('instructions'), true);
+  $app.innerHTML = '<div class="spinner"></div>';
+  const { list, offline } = await loadInstructions();
+  if (parseRoute().view !== 'instructions') return;
+  $app.innerHTML = `
+    ${offline ? `<div class="banner warn">${esc(t('offlineCached'))}</div>` : ''}
+    <input type="search" id="iq" class="search-big" placeholder="${esc(t('instrSearch'))}" value="${esc(q0 || '')}">
+    <div id="ilist"></div>`;
+  const draw = (q) => {
+    const hits = list.filter((x) => instrMatch(x, q));
+    document.getElementById('ilist').innerHTML = hits.map((x) => `
+      <a class="card ticket" href="#/instructions/${x.id}">
+        <div class="ticket-head"><span class="ticket-num">${esc(x.project?.name || '')}${x.device_type ? ' · ' + esc(x.device_type) : ''}</span><span class="chip">v${x.version}</span></div>
+        <div class="ticket-title">${esc(x.title)}</div>
+        ${x.symptom ? `<div class="ticket-loc">${esc(x.symptom)}</div>` : ''}
+      </a>`).join('') || `<div class="empty">${esc(t('noInstr'))}</div>`;
+  };
+  const inp = document.getElementById('iq');
+  inp.addEventListener('input', debounce(() => draw(inp.value.trim()), 150));
+  draw(q0 || '');
+}
+
+async function renderInstruction(id) {
+  let list = (await kv.get('instructions')) || [];
+  let x = list.find((i) => String(i.id) === String(id));
+  if (!x) { list = (await loadInstructions()).list; x = list.find((i) => String(i.id) === String(id)); }
+  setTop('📘 ' + (x?.title || t('instructions')), true);
+  if (!x) { $app.innerHTML = `<div class="empty">${esc(t('noInstr'))}</div>`; return; }
+  $app.innerHTML = `
+    <div class="card">
+      <div class="ticket-head"><span class="ticket-num">${esc(x.project?.name || '')}${x.device_type ? ' · ' + esc(x.device_type) : ''}</span><span class="chip">v${x.version}</span></div>
+      <div class="ticket-title" style="font-size:18px">${esc(x.title)}</div>
+      ${x.symptom ? `<div class="desc" style="margin-top:6px"><strong>${esc(t('symptom'))}:</strong> ${esc(x.symptom)}</div>` : ''}
+    </div>
+    <div class="card">${instrStepsHtml(x.steps)}</div>
+    ${x.note ? `<div class="banner warn">⚠ ${esc(x.note)}</div>` : ''}
+    <div class="card">
+      <div class="small muted" style="margin-bottom:8px">${esc(t('instrHelped'))}</div>
+      <div class="row"><button class="btn" data-rate="1">👍 ${esc(t('yes'))}</button><button class="btn" data-rate="0">👎 ${esc(t('no'))}</button></div>
+    </div>`;
+  for (const b of $app.querySelectorAll('[data-rate]')) {
+    b.onclick = async () => {
+      const helpful = b.dataset.rate === '1';
+      const comment = helpful ? null : await promptSheet(t('instrWhatMissing'));
+      if (!helpful && (comment === undefined || comment === null)) return;
+      try { await api.rateInstruction(x.version_id, { helpful, comment: comment || null }); toast(t('thanks')); } catch { toast(t('offline'), true); }
+    };
+  }
+}
+
+/** Výběr návodu do výjezdu – nabídne nejdřív návody k projektu a zařízení zakázky */
+async function pickInstruction(ticket) {
+  const { list } = await loadInstructions();
+  const rel = (x) => (x.project?.id === ticket.project?.id ? 2 : 0) + (ticket.device && x.device_type === ticket.device.type ? 1 : 0);
+  const sorted = [...list].sort((a, b) => rel(b) - rel(a) || a.title.localeCompare(b.title));
+  return sheet(`
+    <h3>📘 ${esc(t('pickInstruction'))}</h3>
+    <input type="search" id="pq" class="search-big" placeholder="${esc(t('instrSearch'))}">
+    <div id="plist" class="pick-list"></div>
+    <button class="btn" data-no style="width:100%;margin-top:8px">${esc(t('cancel'))}</button>`,
+  (dlg, close) => {
+    const draw = (q) => {
+      dlg.querySelector('#plist').innerHTML = sorted.filter((x) => instrMatch(x, q)).map((x) => `<button class="menu-item" data-i="${x.id}"><strong>${esc(x.title)}</strong><div class="muted small">${esc(x.symptom || '')}</div></button>`).join('') || `<div class="empty">${esc(t('noInstr'))}</div>`;
+      dlg.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => close(sorted.find((x) => String(x.id) === b.dataset.i)); });
+    };
+    const inp = dlg.querySelector('#pq');
+    inp.addEventListener('input', () => draw(inp.value.trim()));
+    dlg.querySelector('[data-no]').onclick = () => close(null);
+    draw('');
+  });
 }

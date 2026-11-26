@@ -191,3 +191,15 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--brand-2); o
 .earn-rows > div:last-child { border-bottom: 0; }
 .earn-rows strong { white-space: nowrap; }
 input[type=date] { -webkit-appearance: none; appearance: none; background: #fff; }
+
+/* --- návody --- */
+.search-big { width: 100%; min-height: 48px; padding: 10px 14px; border-radius: 12px; border: 1px solid #c9d2dc; font-size: 16px; margin-bottom: 12px; background: #fff; }
+.instr-steps { margin: 0; padding-left: 24px; }
+.instr-steps > li { margin-bottom: 14px; }
+.instr-steps > li:last-child { margin-bottom: 0; }
+.instr-steps > li > div { font-weight: 600; }
+.instr-steps ul { margin: 6px 0 0; padding-left: 16px; }
+.instr-steps ul li { margin: 4px 0; }
+.pick-list { max-height: 55vh; overflow-y: auto; }
+.instr-picked { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #eef5fc; border: 1px solid #c8dcf0; border-radius: 10px; }
+.instr-picked a { flex: 1; font-weight: 600; color: var(--brand); text-decoration: none; }

@@ -60,6 +60,8 @@ export const api = {
   submitVisit: (uuid) => request('POST', `/visits/${uuid}/submit`),
   setStatus: (ticketId, status, note) => request('POST', `/tickets/${ticketId}/status`, { status, note }),
   uploadPhoto: (form) => request('POST', '/attachments', form, { timeout: 120000 }),
+  instructions: () => request('GET', '/instructions'),
+  rateInstruction: (versionId, body) => request('POST', `/instruction-versions/${versionId}/rate`, body),
   expenses: () => request('GET', '/expenses?mine=1'),
   saveExpense: (form, id) => request('POST', id ? `/expenses/${id}` : '/expenses', form, { timeout: 120000 }),
   deleteExpense: (id) => request('DELETE', `/expenses/${id}`),
