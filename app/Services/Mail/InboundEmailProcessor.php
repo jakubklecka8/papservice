@@ -110,7 +110,7 @@ class InboundEmailProcessor
 
         if (isset($this->sent->answered($email->mailbox)[strtoupper($ref)])) {
             $email->update(['status' => 'ignored', 'processed_at' => now(),
-                'ai_result' => ['engine' => 'ritm', 'reason' => $ref.' už je vyřízené – odpověď je ve složce Odeslané.']]);
+                'ai_result' => ['engine' => 'ritm', 'reason' => $ref.' už je vyřízené (stará aplikace / odpověď v Odeslaných).']]);
 
             return null;
         }

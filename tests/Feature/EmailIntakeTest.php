@@ -18,8 +18,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Symfony\Component\Mime\Email;
@@ -431,6 +433,29 @@ class EmailIntakeTest extends TestCase
         $this->reader->sent = ['Re: RITM0022222'];
         $this->runImport();
         $this->assertSame('assigned', Ticket::sole()->status->value);
+    }
+
+    public function test_ritm_done_in_legacy_app_is_not_imported(): void
+    {
+        config(['database.connections.legacy' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
+        DB::purge('legacy');
+        Schema::connection('legacy')->create('service_calls', function ($t) {
+            $t->id();
+            $t->string('ritm_number')->nullable();
+            $t->string('status');
+            $t->timestamp('created_at')->nullable();
+        });
+        DB::connection('legacy')->table('service_calls')->insert([
+            ['ritm_number' => 'RITM0011111', 'status' => 'dokonceno', 'created_at' => now()->subDays(2)],
+            ['ritm_number' => 'RITM0022222', 'status' => 'nova', 'created_at' => now()->subDay()],
+        ]);
+
+        $this->mailbox->update(['parser' => 'zasilkovna_ritm']); // bez složky Odeslané – jen stará DB
+        $this->reader->messages[] = $this->msg(10, '<a@packeta>', 'RITM0011111 - Service request', $this->ritmBody('CZ-AAA1', '111'));
+        $this->reader->messages[] = $this->msg(11, '<b@packeta>', 'RITM0022222 - Service request', $this->ritmBody('CZ-BBB2', '222'));
+        $this->runImport();
+
+        $this->assertSame(['RITM0022222'], Ticket::pluck('external_ref')->all());
     }
 
     public function test_mailbox_admin_and_email_access(): void
