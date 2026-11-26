@@ -122,7 +122,7 @@ class MailController extends Controller
         $this->ensureAdmin($request->user());
         $n = $importer->import($mailbox);
 
-        return response()->json(['ok' => $mailbox->last_error === null, 'new' => $n, 'error' => $mailbox->last_error]);
+        return response()->json(['ok' => $mailbox->last_error === null, 'new' => $n, 'error' => $mailbox->last_error] + $importer->last);
     }
 
     /**

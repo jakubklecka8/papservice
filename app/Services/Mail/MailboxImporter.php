@@ -20,10 +20,19 @@ class MailboxImporter
         private readonly SentRitmIndex $sent,
     ) {}
 
+    /** Diagnostika posledního načtení (pro „Načíst teď“) */
+    public array $last = [];
+
     /** @return int počet nově uložených zpráv */
     public function import(Mailbox $mailbox): int
     {
         $new = 0;
+        $found = 0;
+        $this->last = [
+            'folder' => $mailbox->imap_folder ?: 'INBOX',
+            'since' => $mailbox->last_uid > 0 ? null : ($mailbox->import_since ?? now()->subDay())->toDateString(),
+            'after_uid' => $mailbox->last_uid,
+        ];
         try {
             // nejdřív Odeslané – aby se už vyřízené RITM vůbec nezakládaly
             if ($this->sent->enabled($mailbox)) {
@@ -31,6 +40,7 @@ class MailboxImporter
             }
 
             foreach ($this->reader->fetchNew($mailbox) as $msg) {
+                $found++;
                 if ($this->store($mailbox, $msg)) {
                     $new++;
                 }
@@ -46,6 +56,7 @@ class MailboxImporter
 
         $mailbox->last_checked_at = now();
         $mailbox->save();
+        $this->last += ['found' => $found, 'new' => $new];
 
         return $new;
     }

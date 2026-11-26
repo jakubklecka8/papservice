@@ -1529,7 +1529,11 @@ async function mailboxForm(m, prj) {
     });
     d.querySelector('#mb-fetch')?.addEventListener('click', async () => {
       out.textContent = '…';
-      try { const r = await api('POST', `/admin/mailboxes/${m.id}/fetch`); out.innerHTML = r.ok ? `✅ +${r.new} ✉` : `❌ ${esc(r.error)}`; } catch (ex) { out.textContent = errText(ex); }
+      try {
+        const r = await api('POST', `/admin/mailboxes/${m.id}/fetch`);
+        const info = `${esc(r.folder || '')} · ${r.since ? 'od ' + esc(r.since) : 'UID > ' + r.after_uid} · nalezeno ${r.found ?? '?'}`;
+        out.innerHTML = r.ok ? `✅ +${r.new} ✉ <span class="muted">(${info})</span>` : `❌ ${esc(r.error)} <span class="muted">(${info})</span>`;
+      } catch (ex) { out.textContent = errText(ex); }
     });
   });
 }
