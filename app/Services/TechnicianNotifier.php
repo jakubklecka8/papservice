@@ -39,6 +39,15 @@ class TechnicianNotifier
         ]);
     }
 
+    public function planned(Ticket $ticket, User $technician): void
+    {
+        $when = $ticket->planned_at?->copy()->timezone('Europe/Prague')->format('d.m. H:i');
+        $this->send($technician, $ticket, [
+            'title' => '📅 '.$ticket->number.' · '.$when,
+            'body' => $this->line($ticket),
+        ]);
+    }
+
     private function line(Ticket $ticket): string
     {
         $loc = $ticket->location;

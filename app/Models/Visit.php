@@ -14,7 +14,7 @@ class Visit extends Model
     protected $fillable = [
         'uuid', 'ticket_id', 'technician_id', 'status', 'arrived_at', 'departed_at', 'minutes_on_site', 'km',
         'work_description', 'repair_description', 'test_result', 'test_note', 'instruction_ref',
-        'signer_name', 'signature_technician', 'signature_customer', 'signed_at',
+        'signer_name', 'signature_technician', 'signature_customer', 'signed_at', 'checklist',
         'submitted_at', 'return_note', 'client_updated_at', 'legacy_id',
     ];
 
@@ -28,6 +28,7 @@ class Visit extends Model
             'submitted_at' => 'datetime',
             'client_updated_at' => 'datetime',
             'signed_at' => 'datetime',
+            'checklist' => 'array',
             'km' => 'float',
             'minutes_on_site' => 'integer',
         ];

@@ -10,6 +10,7 @@ use App\Http\Resources\TicketResource;
 use App\Models\Location;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\TicketAssigner;
 use App\Services\Mail\ClientReportMailer;
 use App\Services\TechnicianNotifier;
 use Illuminate\Http\JsonResponse;
@@ -156,7 +157,7 @@ class TicketController extends Controller
         $this->authorize('view', $ticket);
 
         $ticket->load([
-            'project', 'location', 'technician', 'attachments', 'protocols.visit',
+            'project', 'location', 'technician', 'attachments', 'protocols.visit', 'device', 'checklistTemplate', 'schedule:id,title,interval_months',
             'visits' => fn ($q) => $q->orderBy('id'),
             'visits.technician', 'visits.parts.part', 'visits.attachments', 'history.user', 'sourceEmail',
         ]);
@@ -175,10 +176,18 @@ class TicketController extends Controller
             'service_type' => ['sometimes', Rule::enum(ServiceType::class)],
             'priority' => ['sometimes', Rule::in(['low', 'normal', 'high', 'urgent'])],
             'due_at' => ['nullable', 'date'],
+            'device_id' => ['nullable', 'integer', 'exists:devices,id'],
+            'checklist_template_id' => ['nullable', 'integer', 'exists:checklist_templates,id'],
         ]);
 
         if (! empty($data['due_at'])) {
             $data['due_at'] = Carbon::parse($data['due_at'])->utc();
+        }
+        if (! empty($data['device_id'])) {
+            abort_unless(\App\Models\Device::whereKey($data['device_id'])->value('project_id') === $ticket->project_id, 422, 'Zařízení nepatří do projektu zakázky.');
+        }
+        if (! empty($data['checklist_template_id'])) {
+            abort_unless(\App\Models\ChecklistTemplate::whereKey($data['checklist_template_id'])->value('project_id') === $ticket->project_id, 422, 'Kontrolní seznam nepatří do projektu zakázky.');
         }
 
         if (array_key_exists('location_id', $data) && $data['location_id']) {
@@ -205,37 +214,10 @@ class TicketController extends Controller
         ]);
 
         $technician = User::findOrFail($data['technician_id']);
-        abort_unless($technician->is_active && $technician->hasRole(Role::Technik), 422, 'Vybraný uživatel není aktivní technik.');
-        abort_unless($ticket->status->isOpen(), 422, 'Uzavřenou zakázku nelze přidělit.');
-
-        $previous = $ticket->assigned_technician_id;
-
-        DB::transaction(function () use ($ticket, $technician, $request, $data) {
-            $ticket->fill([
-                'assigned_technician_id' => $technician->id,
-                'assigned_by' => $request->user()->id,
-                'assigned_at' => now(),
-            ]);
-            if (array_key_exists('due_at', $data)) {
-                $ticket->due_at = $data['due_at'] ? Carbon::parse($data['due_at'])->utc() : null;
-            }
-            $ticket->save();
-
-            if (in_array($ticket->status, [TicketStatus::New, TicketStatus::Assigned], true)) {
-                $ticket->changeStatus(TicketStatus::Assigned, $request->user(), $data['note'] ?? 'Přiděleno: '.$technician->name);
-            } else {
-                $ticket->history()->create([
-                    'from_status' => $ticket->status->value,
-                    'to_status' => $ticket->status->value,
-                    'user_id' => $request->user()->id,
-                    'note' => 'Přeřazeno: '.$technician->name,
-                ]);
-            }
-        });
-
-        if ($previous !== $technician->id) {
-            app(TechnicianNotifier::class)->assigned($ticket, $technician);
+        if (array_key_exists('due_at', $data)) {
+            $ticket->update(['due_at' => $data['due_at'] ? Carbon::parse($data['due_at'])->utc() : null]);
         }
+        app(TicketAssigner::class)->assign($ticket, $technician, $request->user(), $data['note'] ?? null);
 
         return new TicketResource($ticket->refresh()->load(['project', 'location', 'technician']));
     }

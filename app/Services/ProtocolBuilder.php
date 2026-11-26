@@ -39,6 +39,11 @@ class ProtocolBuilder
             'missing' => 'chybí',
             'photos' => 'Počet fotografií',
             'approved' => 'Schváleno',
+            'device' => 'Zařízení',
+            'checklist' => 'Kontrolní seznam',
+            'res_ok' => 'OK',
+            'res_nok' => 'Závada',
+            'res_na' => 'N/A',
         ],
         'pl' => [
             'title' => 'Protokół serwisowy',
@@ -67,6 +72,11 @@ class ProtocolBuilder
             'missing' => 'brak',
             'photos' => 'Liczba zdjęć',
             'approved' => 'Zatwierdzono',
+            'device' => 'Urządzenie',
+            'checklist' => 'Lista kontrolna',
+            'res_ok' => 'OK',
+            'res_nok' => 'Usterka',
+            'res_na' => 'N/D',
         ],
     ];
 
@@ -91,7 +101,7 @@ class ProtocolBuilder
     /** @return array<string, mixed> */
     public function build(Visit $visit, string $language): array
     {
-        $visit->loadMissing(['ticket.project', 'ticket.location', 'technician', 'parts.part', 'attachments']);
+        $visit->loadMissing(['ticket.project', 'ticket.location', 'ticket.device', 'technician', 'parts.part', 'attachments']);
         $ticket = $visit->ticket;
         $location = $ticket->location;
 
@@ -126,6 +136,10 @@ class ProtocolBuilder
                 'test_note' => $visit->test_note,
                 'instruction_ref' => $visit->instruction_ref,
             ],
+            'device' => $ticket->device ? [
+                'type' => $ticket->device->type, 'model' => $ticket->device->model, 'serial_number' => $ticket->device->serial_number,
+            ] : null,
+            'checklist' => collect($visit->checklist ?? [])->map(fn ($i) => ['text' => $i['text'], 'result' => $i['result'] ?? null, 'note' => $i['note'] ?? null])->all(),
             'signatures' => [
                 'technician' => $visit->signature_technician,
                 'customer' => $visit->signature_customer,

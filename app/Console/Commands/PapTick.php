@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Mailbox;
 use App\Services\Mail\MailboxImporter;
+use App\Services\ScheduleService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -46,6 +47,16 @@ class PapTick extends Command
                     } catch (Throwable $e) {
                         report($e);
                     }
+                }
+            }
+
+            // harmonogramy údržby – jednou za hodinu stačí
+            if (! Cache::has('pap:schedules:recent')) {
+                Cache::put('pap:schedules:recent', true, 3500);
+                try {
+                    app(ScheduleService::class)->run();
+                } catch (Throwable $e) {
+                    report($e);
                 }
             }
 

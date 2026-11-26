@@ -11,11 +11,11 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['code', 'name', 'service_types', 'countries', 'protocol_template', 'is_active', 'legacy_id'];
+    protected $fillable = ['code', 'name', 'service_types', 'countries', 'protocol_template', 'sla_hours', 'is_active', 'legacy_id'];
 
     protected function casts(): array
     {
-        return ['service_types' => 'array', 'countries' => 'array', 'is_active' => 'boolean'];
+        return ['service_types' => 'array', 'countries' => 'array', 'sla_hours' => 'array', 'is_active' => 'boolean'];
     }
 
     public function endCustomers(): HasMany
@@ -31,5 +31,13 @@ class Project extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
+    /** Termín podle SLA projektu a priority (null = projekt SLA nemá) */
+    public function slaDueAt(string $priority, ?\DateTimeInterface $from = null): ?\Illuminate\Support\Carbon
+    {
+        $hours = $this->sla_hours[$priority] ?? null;
+
+        return $hours ? \Illuminate\Support\Carbon::instance($from ?? now())->addHours((int) $hours) : null;
     }
 }

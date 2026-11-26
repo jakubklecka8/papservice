@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\V1\Admin\UserController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingController;
+use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\PlanningController;
+use App\Http\Controllers\Api\V1\SetupController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\ProtocolController;
@@ -62,6 +65,31 @@ Route::prefix('v1')->group(function () {
         Route::get('emails', [MailController::class, 'emails']);
         Route::get('emails/{email}', [MailController::class, 'email']);
         Route::post('emails/{email}/action', [MailController::class, 'emailAction']);
+
+        Route::get('devices', [DeviceController::class, 'index']);
+        Route::get('devices/export', [DeviceController::class, 'export']);
+        Route::post('devices', [DeviceController::class, 'store']);
+        Route::get('devices/{device}', [DeviceController::class, 'show']);
+        Route::patch('devices/{device}', [DeviceController::class, 'update']);
+        Route::post('devices/{device}/events', [DeviceController::class, 'addEvent']);
+
+        Route::get('planning', [PlanningController::class, 'calendar']);
+        Route::post('tickets/{ticket}/plan', [PlanningController::class, 'plan']);
+        Route::post('absences', [PlanningController::class, 'storeAbsence']);
+        Route::delete('absences/{absence}', [PlanningController::class, 'destroyAbsence']);
+        Route::get('schedules', [PlanningController::class, 'schedules']);
+        Route::post('schedules', [PlanningController::class, 'storeSchedule']);
+        Route::patch('schedules/{schedule}', [PlanningController::class, 'updateSchedule']);
+        Route::delete('schedules/{schedule}', [PlanningController::class, 'destroySchedule']);
+        Route::post('schedules/{schedule}/run', [PlanningController::class, 'runSchedule']);
+
+        Route::get('admin/projects', [SetupController::class, 'projects']);
+        Route::post('admin/projects', [SetupController::class, 'storeProject']);
+        Route::patch('admin/projects/{project}', [SetupController::class, 'updateProject']);
+        Route::get('checklists', [SetupController::class, 'checklists']);
+        Route::post('checklists', [SetupController::class, 'storeChecklist']);
+        Route::patch('checklists/{checklist}', [SetupController::class, 'updateChecklist']);
+        Route::delete('checklists/{checklist}', [SetupController::class, 'destroyChecklist']);
 
         Route::get('tariffs', [BillingController::class, 'tariffs']);
         Route::post('tariffs', [BillingController::class, 'storeTariff']);

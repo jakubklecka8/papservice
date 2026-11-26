@@ -61,6 +61,17 @@ class TicketResource extends JsonResource
                 'phone' => $this->reporter_phone,
             ]),
             'due_at' => $this->due_at?->toIso8601String(),
+            'planned_at' => $this->planned_at?->toIso8601String(),
+            'device' => $this->when(! $customerOnly && $this->relationLoaded('device') && $this->device, fn () => [
+                'id' => $this->device->id, 'type' => $this->device->type, 'model' => $this->device->model,
+                'serial_number' => $this->device->serial_number, 'installed_at' => $this->device->installed_at?->toDateString(),
+            ]),
+            'checklist' => $this->when(! $customerOnly && $this->relationLoaded('checklistTemplate') && $this->checklistTemplate, fn () => [
+                'id' => $this->checklistTemplate->id, 'name' => $this->checklistTemplate->name, 'items' => $this->checklistTemplate->items,
+            ]),
+            'schedule' => $this->when(! $customerOnly && $this->relationLoaded('schedule') && $this->schedule, fn () => [
+                'id' => $this->schedule->id, 'title' => $this->schedule->title, 'interval_months' => $this->schedule->interval_months,
+            ]),
             'assigned_at' => $this->assigned_at?->toIso8601String(),
             'closed_at' => $this->closed_at?->toIso8601String(),
             'client_report_sent_at' => $this->when(! $customerOnly, fn () => $this->client_report_sent_at?->toIso8601String()),

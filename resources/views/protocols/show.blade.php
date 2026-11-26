@@ -68,6 +68,19 @@
     </table>
 @endif
 
+@if (! empty($d['device']))
+    <table><tr><th>{{ $l['device'] ?? 'Zařízení' }}</th><td>{{ $d['device']['type'] }}@if($d['device']['model']) · {{ $d['device']['model'] }}@endif @if($d['device']['serial_number']) · S/N {{ $d['device']['serial_number'] }}@endif</td></tr></table>
+@endif
+@if (! empty($d['checklist']))
+    <h3 style="font-size:12pt;margin:5mm 0 1mm">{{ $l['checklist'] ?? 'Kontrolní seznam' }}</h3>
+    <table class="parts">
+        @foreach ($d['checklist'] as $c)
+            <tr><td>{{ $c['text'] }}@if($c['note'])<div class="muted">{{ $c['note'] }}</div>@endif</td>
+                <td style="width:22mm;font-weight:bold;{{ $c['result'] === 'nok' ? 'color:#c0392b' : '' }}">{{ $c['result'] ? ($l['res_'.$c['result']] ?? $c['result']) : '—' }}</td></tr>
+        @endforeach
+    </table>
+@endif
+
 @php $sig = $d['signatures'] ?? []; @endphp
 @if (! empty($sig['technician']) || ! empty($sig['customer']))
     <table class="sigs">

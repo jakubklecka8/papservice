@@ -23,6 +23,7 @@ class Ticket extends Model
         'title', 'description', 'created_by', 'reporter_name', 'reporter_email', 'reporter_phone',
         'assigned_technician_id', 'assigned_by', 'assigned_at', 'due_at', 'closed_at', 'client_report_sent_at', 'client_report_by', 'legacy_id', 'legacy_status',
         'price_currency', 'price_base', 'price_km_rate', 'price_extra', 'price_total', 'price_note', 'price_locked_at',
+        'device_id', 'schedule_id', 'checklist_template_id', 'planned_at',
     ];
 
     protected function casts(): array
@@ -35,6 +36,7 @@ class Ticket extends Model
             'closed_at' => 'datetime',
             'client_report_sent_at' => 'datetime',
             'price_locked_at' => 'datetime',
+            'planned_at' => 'datetime',
         ];
     }
 
@@ -42,6 +44,14 @@ class Ticket extends Model
     {
         static::creating(function (Ticket $ticket) {
             $ticket->uuid ??= (string) Str::uuid();
+            // termín podle SLA projektu, pokud ho nikdo nezadal (4.1)
+            if ($ticket->due_at === null && $ticket->project_id) {
+                $ticket->due_at = Project::find($ticket->project_id)?->slaDueAt($ticket->priority ?? 'normal');
+            }
+            // kontrolní seznam podle projektu a typu služby
+            if ($ticket->checklist_template_id === null && $ticket->project_id) {
+                $ticket->checklist_template_id = ChecklistTemplate::for($ticket->project_id, $ticket->service_type ?? 'servis')?->id;
+            }
         });
 
         // Číslo se přidělí až po úspěšném uložení (potvrzení e-mailem se posílá až po něm – 3.3)
@@ -51,6 +61,21 @@ class Ticket extends Model
                 $ticket->saveQuietly();
             }
         });
+    }
+
+    public function device(): BelongsTo
+    {
+        return $this->belongsTo(Device::class);
+    }
+
+    public function checklistTemplate(): BelongsTo
+    {
+        return $this->belongsTo(ChecklistTemplate::class);
+    }
+
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(Schedule::class);
     }
 
     public function project(): BelongsTo
