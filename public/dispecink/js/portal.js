@@ -18,7 +18,8 @@ const T = {
     prio: { low: 'Nízká', normal: 'Normální', high: 'Vysoká', urgent: 'Urgentní' },
     stype: { servis: 'Servis', profilaxe: 'Profylaxe', udrzba: 'Údržba', instalace: 'Instalace' },
     test: { ok: 'V pořádku', failed: 'Nevyhověl', na: 'Neprováděl se' },
-    project: 'Projekt', location: 'Provozovna', pickLocation: 'Začni psát kód, název nebo město…', change: 'Změnit',
+    project: 'Projekt', location: 'Provozovna', pickLocation: 'Klikni a vyber, nebo hledej kód, název, město…', change: 'Změnit',
+    noLocFound: 'Nic nenalezeno', pickFromList: 'Vyber provozovnu ze seznamu, nebo v seznamu klikni na „➕ Nová provozovna“.',
     reqTitle: 'Název / závada', description: 'Popis', serviceType: 'Typ', priority: 'Priorita', due: 'Termín (SLA)',
     reporter: 'Nahlásil', reporterName: 'Jméno', reporterEmail: 'E-mail', reporterPhone: 'Telefon',
     assignNow: 'Rovnou přidělit technikovi', none: '— nikdo —', create: 'Založit', save: 'Uložit', cancel: 'Zrušit', close: 'Zavřít',
@@ -66,7 +67,8 @@ const T = {
     prio: { low: 'Niski', normal: 'Normalny', high: 'Wysoki', urgent: 'Pilny' },
     stype: { servis: 'Serwis', profilaxe: 'Profilaktyka', udrzba: 'Konserwacja', instalace: 'Instalacja' },
     test: { ok: 'Poprawny', failed: 'Negatywny', na: 'Nie wykonano' },
-    project: 'Projekt', location: 'Lokalizacja', pickLocation: 'Wpisz kod, nazwę lub miasto…', change: 'Zmień',
+    project: 'Projekt', location: 'Lokalizacja', pickLocation: 'Kliknij i wybierz albo szukaj kodu, nazwy, miasta…', change: 'Zmień',
+    noLocFound: 'Nic nie znaleziono', pickFromList: 'Wybierz lokalizację z listy albo kliknij na liście „➕ Nowa lokalizacja”.',
     reqTitle: 'Nazwa / usterka', description: 'Opis', serviceType: 'Typ', priority: 'Priorytet', due: 'Termin (SLA)',
     reporter: 'Zgłaszający', reporterName: 'Imię i nazwisko', reporterEmail: 'E-mail', reporterPhone: 'Telefon',
     assignNow: 'Od razu przydziel technikowi', none: '— nikt —', create: 'Utwórz', save: 'Zapisz', cancel: 'Anuluj', close: 'Zamknij',
@@ -472,35 +474,92 @@ async function renderTickets(q) {
 
 // ================================================================ výběr provozovny
 
-/** Vyhledávací pole provozovny v rámci projektu. onPick(location|null) */
+/**
+ * Výběr provozovny v rámci projektu. Ukáže seznam hned po kliknutí, hledá podle
+ * kódu/názvu/města a když nic nenajde, dovolí rovnou založit novou provozovnu.
+ * onPick(location|null)
+ */
 function locationPicker(box, getProjectId, onPick, initial = null) {
   let picked = initial;
-  const draw = () => {
+
+  const quickCreate = (query) => {
+    const pid = getProjectId();
+    box.innerHTML = `
+      <div class="card" style="margin:0;background:#f8fafc">
+        <strong>➕ ${esc(t('newLocation'))}</strong>
+        <div class="form-grid" style="margin-top:10px">
+          <label class="f"><span class="req">${esc(t('code'))}</span><input type="text" data-q="code" placeholder="např. BRNO-001"></label>
+          <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" data-q="name" value="${esc(query)}"></label>
+          <label class="f full"><span>${esc(t('street'))}</span><input type="text" data-q="street"></label>
+          <label class="f"><span>${esc(t('city'))}</span><input type="text" data-q="city" value="${esc(query)}"></label>
+          <label class="f"><span>${esc(t('zip'))}</span><input type="text" data-q="zip"></label>
+          <label class="f"><span>${esc(t('country'))}</span><select data-q="country">${['CZ', 'PL', 'DE', 'SK'].map((c) => `<option>${c}</option>`).join('')}</select></label>
+        </div>
+        <div class="banner err small" data-err hidden></div>
+        <div class="btn-row"><button type="button" class="btn primary" data-save>${esc(t('save'))}</button><button type="button" class="btn" data-back>${esc(t('cancel'))}</button></div>
+      </div>`;
+    const val = (k) => box.querySelector(`[data-q=${k}]`).value.trim();
+    box.querySelector('[data-q=code]').focus();
+    box.querySelector('[data-back]').onclick = () => draw(query);
+    box.querySelector('[data-save]').onclick = async () => {
+      const err = box.querySelector('[data-err]');
+      err.hidden = true;
+      if (!val('code') || !val('name')) { err.textContent = `${t('code')} + ${t('name')}`; err.hidden = false; return; }
+      try {
+        const res = await api('POST', '/locations', {
+          project_id: Number(pid), code: val('code'), name: val('name'), street: val('street') || null,
+          city: val('city') || null, zip: val('zip') || null, country: val('country'),
+        });
+        picked = res.data;
+        onPick(picked);
+        toast(t('saved'));
+        draw();
+      } catch (e) {
+        err.textContent = errText(e);
+        err.hidden = false;
+      }
+    };
+  };
+
+  const draw = (prefill = '') => {
     if (picked) {
       box.innerHTML = `<div class="picked"><span class="sp"><strong>${esc(picked.code)}</strong> · ${esc(picked.name)}<br><span class="muted small">${esc(addrOf(picked))}</span></span>
         <button type="button" class="btn sm">${esc(t('change'))}</button></div>`;
       box.querySelector('button').onclick = () => { picked = null; onPick(null); draw(); box.querySelector('input')?.focus(); };
       return;
     }
-    box.innerHTML = `<div class="search-box"><input type="search" placeholder="${esc(t('pickLocation'))}"><div class="search-results" hidden></div></div>`;
+    box.innerHTML = `<div class="search-box"><input type="search" placeholder="${esc(t('pickLocation'))}" value="${esc(prefill)}"><div class="search-results" hidden></div></div>`;
     const input = box.querySelector('input');
     const results = box.querySelector('.search-results');
-    const search = debounce(async () => {
+
+    const search = async () => {
       const pid = getProjectId();
       const qv = input.value.trim();
-      if (!qv) { results.hidden = true; return; }
       try {
-        const res = await api('GET', `/locations?q=${encodeURIComponent(qv)}${pid ? `&project_id=${pid}` : ''}`);
-        results.innerHTML = res.data.length
+        const res = await api('GET', `/locations?per_page=30${qv ? `&q=${encodeURIComponent(qv)}` : ''}${pid ? `&project_id=${pid}` : ''}`);
+        const canCreate = pid && managesProject(pid);
+        results.innerHTML = (res.data.length
           ? res.data.map((l, i) => `<button type="button" data-i="${i}"><strong>${esc(l.code)}</strong> · ${esc(l.name)}<br><span class="muted small">${esc(addrOf(l))}</span></button>`).join('')
-          : `<div class="muted small" style="padding:10px">—</div>`;
+          : `<div class="muted small" style="padding:10px">${esc(t('noLocFound'))}${qv ? ` „${esc(qv)}“` : ''}</div>`)
+          + (canCreate ? `<button type="button" data-new style="color:var(--brand-2);font-weight:600">➕ ${esc(t('newLocation'))}${qv ? ` „${esc(qv)}“` : ''}</button>` : '');
         results.hidden = false;
         results.querySelectorAll('[data-i]').forEach((b) => {
+          b.onmousedown = (e) => e.preventDefault();
           b.onclick = () => { picked = res.data[Number(b.dataset.i)]; onPick(picked); draw(); };
         });
+        const nb = results.querySelector('[data-new]');
+        if (nb) { nb.onmousedown = (e) => e.preventDefault(); nb.onclick = () => quickCreate(qv); }
       } catch { /* nic */ }
-    }, 300);
-    input.addEventListener('input', search);
+    };
+    const searchSoon = debounce(search, 250);
+    input.addEventListener('input', searchSoon);
+    input.addEventListener('focus', search);
+    input.addEventListener('blur', () => setTimeout(() => { results.hidden = true; }, 150));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') results.hidden = true;
+      if (e.key === 'Enter') { e.preventDefault(); results.querySelector('[data-i]')?.click(); }
+    });
+    if (prefill) input.focus();
   };
   draw();
 }
@@ -551,7 +610,7 @@ async function renderNewTicket() {
     e.preventDefault();
     const err = el.querySelector('#nerr');
     err.hidden = true;
-    if (!loc) { err.textContent = t('location') + ' – ' + t('pickLocation'); err.hidden = false; return; }
+    if (!loc) { err.textContent = t('pickFromList'); err.hidden = false; el.querySelector('#loc input')?.focus(); return; }
     const btn = f.querySelector('[type=submit]');
     btn.disabled = true;
     try {
