@@ -9,6 +9,13 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // úklid po nedokončeném běhu (MySQL DDL není transakční – při chybě zůstaly prázdné tabulky)
+        if (! Schema::hasColumn('visits', 'instruction_version_id')) {
+            Schema::dropIfExists('instruction_ratings');
+            Schema::dropIfExists('instruction_versions');
+            Schema::dropIfExists('instructions');
+        }
+
         // Návod = téma (závada / postup); obsah žije ve verzích, technik vidí jen zveřejněnou
         Schema::create('instructions', function (Blueprint $table) {
             $table->id();
@@ -47,7 +54,7 @@ return new class extends Migration
             $table->boolean('helpful');
             $table->text('comment')->nullable();
             $table->timestamps();
-            $table->unique(['instruction_version_id', 'user_id', 'visit_id']);
+            $table->unique(['instruction_version_id', 'user_id', 'visit_id'], 'instr_rating_unique');
         });
 
         Schema::table('visits', function (Blueprint $table) {
