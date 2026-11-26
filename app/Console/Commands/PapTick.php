@@ -5,6 +5,9 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\PersonalAccessToken;
+use Throwable;
 
 /**
  * Jeden "tik" cronu – spouští se každou minutu z cronu hostingu
@@ -41,8 +44,11 @@ class PapTick extends Command
                 '--quiet' => true,
             ]);
 
-            $this->daily('pap:daily:tokens', fn () => Artisan::call('sanctum:prune-expired', ['--hours' => 24]));
-            $this->daily('pap:daily:failed', fn () => Artisan::call('queue:prune-failed', ['--hours' => 24 * 30]));
+            // úklid – přímo dotazy, ne Artisan příkazy balíčků (ty přes web/URL cron neexistují)
+            $this->daily('pap:daily:tokens', fn () => PersonalAccessToken::query()
+                ->whereNotNull('expires_at')->where('expires_at', '<', now()->subDay())->delete());
+            $this->daily('pap:daily:failed', fn () => DB::table('failed_jobs')
+                ->where('failed_at', '<', now()->subDays(30))->delete());
 
             Cache::put('pap:tick:last', now()->toIso8601String(), 86400);
             $this->info('OK');
@@ -58,7 +64,11 @@ class PapTick extends Command
         $today = now()->toDateString();
         if (Cache::get($key) !== $today) {
             Cache::put($key, $today, 172800);
-            $job();
+            try {
+                $job();
+            } catch (Throwable $e) {
+                report($e); // úklid nesmí shodit cron
+            }
         }
     }
 }

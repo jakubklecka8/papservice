@@ -9,7 +9,7 @@ on:
         required: true
         default: seed
         type: choice
-        options: [seed, migrate, migrate-status, optimize, optimize-clear, setup, tick]
+        options: [seed, migrate, migrate-status, optimize, optimize-clear, setup, tick, log]
       environment:
         description: 'Prostředí'
         required: true

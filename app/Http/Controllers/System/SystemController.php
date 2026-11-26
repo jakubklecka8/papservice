@@ -20,7 +20,7 @@ use Throwable;
  */
 class SystemController extends Controller
 {
-    private const ACTIONS = ['migrate', 'migrate-status', 'seed', 'optimize', 'optimize-clear', 'setup', 'tick'];
+    private const ACTIONS = ['migrate', 'migrate-status', 'seed', 'optimize', 'optimize-clear', 'setup', 'tick', 'log'];
 
     public function cron(string $token): JsonResponse
     {
@@ -42,6 +42,10 @@ class SystemController extends Controller
         abort_unless(in_array($action, self::ACTIONS, true), 404);
 
         @set_time_limit(300);
+
+        if ($action === 'log') {
+            return response()->json(['ok' => true, 'action' => 'log', 'output' => $this->logTail()]);
+        }
 
         try {
             $code = match ($action) {
@@ -87,6 +91,21 @@ class SystemController extends Controller
         $ok = $checks['database'] && $checks['storage'];
 
         return response()->json($checks, $ok ? 200 : 503);
+    }
+
+    /** Posledních ~80 řádků logu (bez SSH není jak se k logu dostat) */
+    private function logTail(): string
+    {
+        $files = glob(storage_path('logs/*.log')) ?: [];
+        if (! $files) {
+            return '(žádný log)';
+        }
+        usort($files, fn ($a, $b) => filemtime($b) <=> filemtime($a));
+        $lines = @file($files[0], FILE_IGNORE_NEW_LINES) ?: [];
+        // jen hlavní řádky chyb, bez stack trace
+        $lines = array_values(array_filter($lines, fn ($l) => preg_match('/^\[\d{4}-\d{2}-\d{2}/', $l)));
+
+        return basename($files[0])."\n".implode("\n", array_map(fn ($l) => mb_substr($l, 0, 400), array_slice($lines, -80)));
     }
 
     /** Vytvoří adresáře, které FTP deploy nenahrává (storage je z nasazení vyloučené) */

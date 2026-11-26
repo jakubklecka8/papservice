@@ -20,6 +20,13 @@ class SystemEndpointsTest extends TestCase
         $this->assertNotNull(Cache::get('pap:tick:last'));
     }
 
+    public function test_maintenance_log_returns_tail(): void
+    {
+        config(['pap.maintenance_token' => 'tajny-maint']);
+        logger()->error('Testovací chyba pro log');
+        $this->postJson('/_maint/log', [], ['X-Maintenance-Token' => 'tajny-maint'])->assertOk()->assertJsonPath('ok', true);
+    }
+
     public function test_cron_disabled_without_configured_token(): void
     {
         config(['pap.cron_token' => null]);
