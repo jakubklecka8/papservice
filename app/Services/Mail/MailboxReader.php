@@ -11,4 +11,10 @@ interface MailboxReader
 
     /** Ověří přihlášení; vrací počet zpráv ve složce, nebo vyhodí výjimku */
     public function test(Mailbox $mailbox): int;
+
+    /** @return list<string> názvy složek ve schránce (pro výběr složky Odeslané) */
+    public function folders(Mailbox $mailbox): array;
+
+    /** @return list<string> předměty zpráv ve složce od data (jen hlavičky) */
+    public function subjectsSince(Mailbox $mailbox, string $folder, \DateTimeInterface $since): array;
 }

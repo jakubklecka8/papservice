@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Mailbox extends Model
 {
     protected $fillable = [
-        'name', 'project_id', 'parser', 'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_password', 'imap_folder',
+        'name', 'project_id', 'parser', 'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_password', 'imap_folder', 'sent_folder',
         'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_password', 'from_address', 'from_name',
         'dedicated', 'auto_reply', 'is_active', 'import_since', 'last_uid', 'last_checked_at', 'last_error',
     ];

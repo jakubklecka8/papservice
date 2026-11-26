@@ -27,6 +27,7 @@ class InboundEmailProcessor
         private readonly EmailClassifier $classifier,
         private readonly LocationMatcher $matcher,
         private readonly RitmParser $ritm,
+        private readonly SentRitmIndex $sent,
     ) {}
 
     public function process(InboundEmail $email): void
@@ -103,6 +104,13 @@ class InboundEmailProcessor
 
         if ($existing = Ticket::where('project_id', $projectId)->where('external_ref', $ref)->first()) {
             $this->append($email, $existing);
+
+            return null;
+        }
+
+        if (isset($this->sent->answered($email->mailbox)[strtoupper($ref)])) {
+            $email->update(['status' => 'ignored', 'processed_at' => now(),
+                'ai_result' => ['engine' => 'ritm', 'reason' => $ref.' už je vyřízené – odpověď je ve složce Odeslané.']]);
 
             return null;
         }

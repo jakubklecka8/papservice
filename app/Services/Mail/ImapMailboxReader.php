@@ -44,6 +44,49 @@ class ImapMailboxReader implements MailboxReader
         }
     }
 
+    public function folders(Mailbox $mailbox): array
+    {
+        $client = $this->client($mailbox);
+        try {
+            $names = [];
+            foreach ($client->getFolders(false) as $folder) {
+                $names[] = $folder->path;
+            }
+
+            return $names;
+        } finally {
+            $client->disconnect();
+        }
+    }
+
+    public function subjectsSince(Mailbox $mailbox, string $folderPath, \DateTimeInterface $since): array
+    {
+        $client = $this->client($mailbox);
+        try {
+            $folder = $client->getFolderByPath($folderPath);
+            if (! $folder) {
+                throw new RuntimeException('Složka '.$folderPath.' neexistuje.');
+            }
+            $subjects = [];
+            $messages = $folder->query()->leaveUnread()->setFetchBody(false)->since(Carbon::instance($since)->startOfDay())->get();
+            foreach ($messages as $m) {
+                try {
+                    $subjects[] = (string) $m->getSubject()->first();
+                } catch (Throwable) {
+                    // nic
+                }
+            }
+
+            return $subjects;
+        } finally {
+            try {
+                $client->disconnect();
+            } catch (Throwable) {
+                // nic
+            }
+        }
+    }
+
     public function fetchNew(Mailbox $mailbox, int $limit = 30): iterable
     {
         $client = $this->client($mailbox);

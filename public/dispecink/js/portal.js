@@ -64,7 +64,8 @@ const T = {
     folder: 'Složka', fromAddress: 'Odesílatel (e-mail)', fromName: 'Odesílatel (jméno)', dedicated: 'Jen na požadavky',
     dedicatedHint: 'Ne = AI rozliší, co je požadavek; ostatní pošta se jen zaznamená.', autoReply: 'Posílat potvrzení s číslem',
     pwKeep: 'prázdné = beze změny', testConn: 'Otestovat připojení', fetchNow: 'Načíst teď', lastCheck: 'Naposledy',
-    connOk: 'OK', saveFirst: 'Nejdřív ulož.', reprocess: 'Znovu zpracovat e-maily', reprocessConfirm: 'Zakázky z této schránky, na kterých se ještě nic nedělalo (nové, bez technika), se smažou a e-maily se zpracují znovu podle aktuálního nastavení. Pokračovat?',
+    connOk: 'OK', saveFirst: 'Nejdřív ulož.', sentFolder: 'Složka Odeslané', sentHint: 'RITM s odpovědí v Odeslaných se nezakládají (vyřízeno např. ve staré appce). Název zjistíš přes Otestovat připojení.', lookback: 'Načíst zpětně (dní)', lookbackHint: 'Při uložení se schránka načte znovu od tohoto dne; nic se nezdvojí.', folders: 'Složky', sentRitm: 'RITM v Odeslaných',
+    reprocess: 'Znovu zpracovat e-maily', reprocessConfirm: 'Zakázky z této schránky, na kterých se ještě nic nedělalo (nové, bez technika), se smažou a e-maily se zpracují znovu podle aktuálního nastavení. Pokračovat?',
     reportBtn: 'Odeslat report klientovi', reportResend: 'Odeslat report znovu', reportSent: 'Report odeslán', reportTo: 'Komu', reportBody: 'Text', reportPhotos: 'Fotky v příloze', reportSend: 'Odeslat', reportNoSmtp: 'Schránka nemá nastavené odesílání (SMTP) – doplň v Nastavení.',
     parser: 'Zpracování e-mailů', parsers: { ai: 'AI (obecné e-maily, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (pevný formát)' },
     parserHint: 'RITM: zpracují se jen e-maily s RITM v předmětu; stejné RITM = stejná zakázka; neznámý box se založí sám.', extId: 'Externí ID (box ID)',
@@ -129,7 +130,8 @@ const T = {
     folder: 'Folder', fromAddress: 'Nadawca (e-mail)', fromName: 'Nadawca (nazwa)', dedicated: 'Tylko zgłoszenia',
     dedicatedHint: 'Nie = AI rozpozna, co jest zgłoszeniem; pozostała poczta zostanie tylko zapisana.', autoReply: 'Wysyłaj potwierdzenie z numerem',
     pwKeep: 'puste = bez zmian', testConn: 'Testuj połączenie', fetchNow: 'Pobierz teraz', lastCheck: 'Ostatnio',
-    connOk: 'OK', saveFirst: 'Najpierw zapisz.', reprocess: 'Przetwórz e-maile ponownie', reprocessConfirm: 'Zlecenia z tej skrzynki, przy których nic jeszcze nie zrobiono (nowe, bez technika), zostaną usunięte, a e-maile przetworzone ponownie według aktualnych ustawień. Kontynuować?',
+    connOk: 'OK', saveFirst: 'Najpierw zapisz.', sentFolder: 'Folder Wysłane', sentHint: 'RITM z odpowiedzią w Wysłanych nie są zakładane (załatwione np. w starej aplikacji). Nazwę sprawdzisz przez Testuj połączenie.', lookback: 'Wczytaj wstecz (dni)', lookbackHint: 'Po zapisaniu skrzynka zostanie wczytana ponownie od tego dnia; nic się nie zdubluje.', folders: 'Foldery', sentRitm: 'RITM w Wysłanych',
+    reprocess: 'Przetwórz e-maile ponownie', reprocessConfirm: 'Zlecenia z tej skrzynki, przy których nic jeszcze nie zrobiono (nowe, bez technika), zostaną usunięte, a e-maile przetworzone ponownie według aktualnych ustawień. Kontynuować?',
     reportBtn: 'Wyślij raport klientowi', reportResend: 'Wyślij raport ponownie', reportSent: 'Raport wysłany', reportTo: 'Do', reportBody: 'Treść', reportPhotos: 'Zdjęcia w załączniku', reportSend: 'Wyślij', reportNoSmtp: 'Skrzynka nie ma ustawionej wysyłki (SMTP) – uzupełnij w Ustawieniach.',
     parser: 'Przetwarzanie e-maili', parsers: { ai: 'AI (ogólne e-maile, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (stały format)' },
     parserHint: 'RITM: przetwarzane są tylko e-maile z RITM w temacie; ten sam RITM = to samo zlecenie; nieznany box zostanie założony automatycznie.', extId: 'ID zewnętrzne (ID boxu)',
@@ -1460,6 +1462,8 @@ async function mailboxForm(m, prj) {
         <label class="f"><span class="req">${esc(t('username'))}</span><input type="text" name="imap_username" required value="${esc(cur.imap_username || '')}" autocomplete="off"></label>
         <label class="f"><span class="${m ? '' : 'req'}">${esc(t('password'))}${m ? ` <span class="muted">(${esc(t('pwKeep'))})</span>` : ''}</span><input type="password" name="imap_password" ${m ? '' : 'required'} autocomplete="new-password"></label>
         <label class="f"><span>${esc(t('folder'))}</span><input type="text" name="imap_folder" value="${esc(cur.imap_folder || 'INBOX')}"></label>
+        <label class="f"><span>${esc(t('sentFolder'))}</span><input type="text" name="sent_folder" value="${esc(cur.sent_folder || '')}" placeholder="Sent / INBOX.Sent"><span class="muted small">${esc(t('sentHint'))}</span></label>
+        <label class="f"><span>${esc(t('lookback'))}</span><input type="number" name="lookback_days" min="0" max="120" placeholder="${m ? '' : '1'}"><span class="muted small">${esc(t('lookbackHint'))}${m?.import_since ? ' (' + esc(fmt(m.import_since, false)) + ')' : ''}</span></label>
         <label class="f"><span>${esc(t('dedicated'))}</span>${yn('dedicated', cur.dedicated)}<span class="muted small">${esc(t('dedicatedHint'))}</span></label>
         <div class="f full"><strong>${esc(t('smtp'))}</strong></div>
         <label class="f"><span>${esc(t('host'))}</span><input type="text" name="smtp_host" value="${esc(cur.smtp_host || '')}" placeholder="smtp.webglobe.cz"></label>
@@ -1487,11 +1491,13 @@ async function mailboxForm(m, prj) {
         name: f.name.value.trim(), project_id: Number(f.project_id.value), parser: f.parser.value,
         imap_host: f.imap_host.value.trim(), imap_port: n(f.imap_port.value), imap_encryption: f.imap_encryption.value,
         imap_username: f.imap_username.value.trim(), imap_folder: f.imap_folder.value.trim() || 'INBOX',
+        sent_folder: f.sent_folder.value.trim() || null,
         smtp_host: f.smtp_host.value.trim() || null, smtp_port: n(f.smtp_port.value), smtp_encryption: f.smtp_encryption.value,
         smtp_username: f.smtp_username.value.trim() || null, from_address: f.from_address.value.trim() || null,
         from_name: f.from_name.value.trim() || null, dedicated: f.dedicated.value === '1', auto_reply: f.auto_reply.value === '1',
         is_active: f.is_active.value === '1',
       };
+      if (f.lookback_days.value) b.lookback_days = Number(f.lookback_days.value);
       if (f.imap_password.value) b.imap_password = f.imap_password.value;
       if (f.smtp_password.value) b.smtp_password = f.smtp_password.value;
       return b;
@@ -1508,7 +1514,9 @@ async function mailboxForm(m, prj) {
       try {
         const r = await api('POST', `/admin/mailboxes/${m.id}/test`);
         const line = (label, x) => (x ? `${label}: ${x.ok ? '✅ ' + esc(t('connOk')) + (x.messages != null ? ` (${x.messages} ✉)` : '') : '❌ ' + esc(x.error)}` : '');
-        out.innerHTML = [line('IMAP', r.imap), line('SMTP', r.smtp)].filter(Boolean).join('<br>');
+        out.innerHTML = [line('IMAP', r.imap), line('SMTP', r.smtp),
+          r.imap?.folders ? `${esc(t('folders'))}: ${r.imap.folders.map((x) => `<code>${esc(x)}</code>`).join(', ')}` : '',
+          r.sent ? `${esc(t('sentRitm'))}: ${r.sent.ok ? '✅ ' + r.sent.ritm : '❌ ' + esc(r.sent.error)}` : ''].filter(Boolean).join('<br>');
       } catch (ex) { out.textContent = errText(ex); }
     });
     d.querySelector('#mb-reproc')?.addEventListener('click', async () => {

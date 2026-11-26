@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -35,9 +36,22 @@ class FakeMailboxReader implements MailboxReader
         return array_values(array_filter($this->messages, fn ($m) => $m->uid > $mailbox->last_uid));
     }
 
+    /** @var list<string> předměty ve složce Odeslané */
+    public array $sent = [];
+
     public function test(Mailbox $mailbox): int
     {
         return count($this->messages);
+    }
+
+    public function folders(Mailbox $mailbox): array
+    {
+        return ['INBOX', 'Sent'];
+    }
+
+    public function subjectsSince(Mailbox $mailbox, string $folder, \DateTimeInterface $since): array
+    {
+        return $this->sent;
     }
 }
 
@@ -381,6 +395,37 @@ class EmailIntakeTest extends TestCase
         $new = Ticket::whereKeyNot($kept->id)->sole();
         $this->assertSame('RITM0012345', $new->external_ref);
         $this->assertSame('CZ-OST1234', $new->location->code);
+    }
+
+    public function test_ritm_already_answered_in_sent_folder_is_not_imported(): void
+    {
+        $this->mailbox->update(['parser' => 'zasilkovna_ritm', 'sent_folder' => 'Sent', 'auto_reply' => false]);
+        $this->reader->sent = ['RE: RITM0011111 - Service request', 'Re: RITM0033333 hotovo'];
+
+        $this->reader->messages[] = $this->msg(10, '<a@packeta>', 'RITM0011111 - Service request', $this->ritmBody('CZ-AAA1', '111'));
+        $this->reader->messages[] = $this->msg(11, '<b@packeta>', 'RITM0022222 - Service request', $this->ritmBody('CZ-BBB2', '222'));
+        $this->runImport();
+
+        $this->assertSame(['RITM0022222'], Ticket::pluck('external_ref')->all());
+        $this->assertSame('ignored', InboundEmail::where('uid', 10)->value('status'));
+
+        // mezitím ve staré aplikaci odpověděli i na RITM0022222 → netknutá zakázka se zruší
+        $this->reader->sent[] = 'Re: RITM0022222 - Service request';
+        Cache::flush();
+        $this->runImport();
+        $this->assertSame('cancelled', Ticket::sole()->status->value);
+    }
+
+    public function test_answered_elsewhere_does_not_cancel_ticket_in_progress(): void
+    {
+        $this->mailbox->update(['parser' => 'zasilkovna_ritm', 'sent_folder' => 'Sent']);
+        $this->reader->messages[] = $this->msg(10, '<b@packeta>', 'RITM0022222 - Service request', $this->ritmBody());
+        $this->runImport();
+        Ticket::sole()->update(['assigned_technician_id' => $this->tech1->id, 'status' => TicketStatus::Assigned]);
+
+        $this->reader->sent = ['Re: RITM0022222'];
+        $this->runImport();
+        $this->assertSame('assigned', Ticket::sole()->status->value);
     }
 
     public function test_mailbox_admin_and_email_access(): void

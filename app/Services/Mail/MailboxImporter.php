@@ -15,13 +15,21 @@ use Throwable;
  */
 class MailboxImporter
 {
-    public function __construct(private readonly MailboxReader $reader) {}
+    public function __construct(
+        private readonly MailboxReader $reader,
+        private readonly SentRitmIndex $sent,
+    ) {}
 
     /** @return int počet nově uložených zpráv */
     public function import(Mailbox $mailbox): int
     {
         $new = 0;
         try {
+            // nejdřív Odeslané – aby se už vyřízené RITM vůbec nezakládaly
+            if ($this->sent->enabled($mailbox)) {
+                $this->sent->cancelAnsweredElsewhere($mailbox, $this->sent->refresh($mailbox));
+            }
+
             foreach ($this->reader->fetchNew($mailbox) as $msg) {
                 if ($this->store($mailbox, $msg)) {
                     $new++;

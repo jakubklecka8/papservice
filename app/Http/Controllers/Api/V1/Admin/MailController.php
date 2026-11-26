@@ -16,6 +16,7 @@ use App\Services\Mail\InboundEmailProcessor;
 use App\Services\Mail\MailboxImporter;
 use App\Services\Mail\MailboxReader;
 use App\Services\Mail\RitmParser;
+use App\Services\Mail\SentRitmIndex;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +42,9 @@ class MailController extends Controller
     {
         $this->ensureAdmin($request->user());
         $data = $this->validateMailbox($request, null);
-        $data['import_since'] = now()->subDay(); // starší pošta se nenačítá
+        // od kdy číst: výchozí jen poslední den, nebo zvolený počet dní zpětně
+        $data['import_since'] = now()->subDays(max(1, (int) ($data['lookback_days'] ?? 1)));
+        unset($data['lookback_days']);
 
         return response()->json(['data' => $this->mbPayload(Mailbox::create($data))], 201);
     }
@@ -56,6 +59,12 @@ class MailController extends Controller
                 unset($data[$k]);
             }
         }
+        // načíst znovu X dní zpátky (stejné zprávy se nezdvojí – kontrola Message-ID)
+        if (isset($data['lookback_days']) && $data['lookback_days'] > 0) {
+            $data['import_since'] = now()->subDays($data['lookback_days']);
+            $data['last_uid'] = 0;
+        }
+        unset($data['lookback_days']);
         $mailbox->update($data);
 
         return response()->json(['data' => $this->mbPayload($mailbox->fresh('project'))]);
@@ -76,9 +85,17 @@ class MailController extends Controller
         $out = ['imap' => null, 'smtp' => null];
 
         try {
-            $out['imap'] = ['ok' => true, 'messages' => $reader->test($mailbox)];
+            $out['imap'] = ['ok' => true, 'messages' => $reader->test($mailbox), 'folders' => $reader->folders($mailbox)];
         } catch (Throwable $e) {
             $out['imap'] = ['ok' => false, 'error' => Str::limit($e->getMessage(), 300)];
+        }
+        if ($out['imap']['ok'] && $mailbox->sent_folder) {
+            try {
+                $set = app(SentRitmIndex::class)->refresh($mailbox);
+                $out['sent'] = ['ok' => true, 'ritm' => count($set)];
+            } catch (Throwable $e) {
+                $out['sent'] = ['ok' => false, 'error' => Str::limit($e->getMessage(), 300)];
+            }
         }
 
         if ($mailbox->canSend()) {
@@ -159,6 +176,8 @@ class MailController extends Controller
             'imap_username' => [$req, 'string', 'max:255'],
             'imap_password' => [$mb ? 'nullable' : 'required', 'string', 'max:500'],
             'imap_folder' => ['nullable', 'string', 'max:255'],
+            'sent_folder' => ['nullable', 'string', 'max:255'],
+            'lookback_days' => ['nullable', 'integer', 'min:0', 'max:120'],
             'smtp_host' => ['nullable', 'string', 'max:255'],
             'smtp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'smtp_encryption' => ['nullable', Rule::in(['ssl', 'tls', 'none'])],
@@ -175,7 +194,7 @@ class MailController extends Controller
     private function mbPayload(Mailbox $m): array
     {
         return $m->only([
-            'id', 'name', 'project_id', 'parser', 'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_folder',
+            'id', 'name', 'project_id', 'parser', 'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_folder', 'sent_folder', 'import_since',
             'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'from_address', 'from_name',
             'dedicated', 'auto_reply', 'is_active', 'last_checked_at', 'last_error',
         ]) + [
