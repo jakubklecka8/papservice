@@ -20,7 +20,7 @@ use Throwable;
  */
 class SystemController extends Controller
 {
-    private const ACTIONS = ['migrate', 'migrate-status', 'seed', 'optimize', 'optimize-clear', 'setup', 'tick', 'log'];
+    private const ACTIONS = ['migrate', 'migrate-status', 'seed', 'optimize', 'optimize-clear', 'setup', 'tick', 'log', 'legacy-ritm'];
 
     public function cron(string $token): JsonResponse
     {
@@ -56,6 +56,7 @@ class SystemController extends Controller
                 'optimize-clear' => Artisan::call('optimize:clear'),
                 'setup' => $this->setup(),
                 'tick' => Artisan::call('pap:tick'),
+                'legacy-ritm' => Artisan::call('pap:legacy-ritm-stats'),
             };
         } catch (Throwable $e) {
             report($e);
