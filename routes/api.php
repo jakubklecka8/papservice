@@ -54,6 +54,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('admin/mailboxes/{mailbox}', [MailController::class, 'destroyMailbox']);
         Route::post('admin/mailboxes/{mailbox}/test', [MailController::class, 'testMailbox']);
         Route::post('admin/mailboxes/{mailbox}/fetch', [MailController::class, 'fetchNow']);
+        Route::post('admin/mailboxes/{mailbox}/reprocess', [MailController::class, 'reprocess']);
         Route::get('admin/ai', [MailController::class, 'aiSettings']);
         Route::put('admin/ai', [MailController::class, 'saveAiSettings']);
         Route::post('admin/ai/test', [MailController::class, 'testAi']);

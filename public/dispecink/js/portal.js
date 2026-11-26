@@ -64,7 +64,8 @@ const T = {
     folder: 'Složka', fromAddress: 'Odesílatel (e-mail)', fromName: 'Odesílatel (jméno)', dedicated: 'Jen na požadavky',
     dedicatedHint: 'Ne = AI rozliší, co je požadavek; ostatní pošta se jen zaznamená.', autoReply: 'Posílat potvrzení s číslem',
     pwKeep: 'prázdné = beze změny', testConn: 'Otestovat připojení', fetchNow: 'Načíst teď', lastCheck: 'Naposledy',
-    connOk: 'OK', saveFirst: 'Nejdřív ulož.', reportBtn: 'Odeslat report klientovi', reportResend: 'Odeslat report znovu', reportSent: 'Report odeslán', reportTo: 'Komu', reportBody: 'Text', reportPhotos: 'Fotky v příloze', reportSend: 'Odeslat', reportNoSmtp: 'Schránka nemá nastavené odesílání (SMTP) – doplň v Nastavení.',
+    connOk: 'OK', saveFirst: 'Nejdřív ulož.', reprocess: 'Znovu zpracovat e-maily', reprocessConfirm: 'Zakázky z této schránky, na kterých se ještě nic nedělalo (nové, bez technika), se smažou a e-maily se zpracují znovu podle aktuálního nastavení. Pokračovat?',
+    reportBtn: 'Odeslat report klientovi', reportResend: 'Odeslat report znovu', reportSent: 'Report odeslán', reportTo: 'Komu', reportBody: 'Text', reportPhotos: 'Fotky v příloze', reportSend: 'Odeslat', reportNoSmtp: 'Schránka nemá nastavené odesílání (SMTP) – doplň v Nastavení.',
     parser: 'Zpracování e-mailů', parsers: { ai: 'AI (obecné e-maily, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (pevný formát)' },
     parserHint: 'RITM: zpracují se jen e-maily s RITM v předmětu; stejné RITM = stejná zakázka; neznámý box se založí sám.', extId: 'Externí ID (box ID)',
   },
@@ -128,7 +129,8 @@ const T = {
     folder: 'Folder', fromAddress: 'Nadawca (e-mail)', fromName: 'Nadawca (nazwa)', dedicated: 'Tylko zgłoszenia',
     dedicatedHint: 'Nie = AI rozpozna, co jest zgłoszeniem; pozostała poczta zostanie tylko zapisana.', autoReply: 'Wysyłaj potwierdzenie z numerem',
     pwKeep: 'puste = bez zmian', testConn: 'Testuj połączenie', fetchNow: 'Pobierz teraz', lastCheck: 'Ostatnio',
-    connOk: 'OK', saveFirst: 'Najpierw zapisz.', reportBtn: 'Wyślij raport klientowi', reportResend: 'Wyślij raport ponownie', reportSent: 'Raport wysłany', reportTo: 'Do', reportBody: 'Treść', reportPhotos: 'Zdjęcia w załączniku', reportSend: 'Wyślij', reportNoSmtp: 'Skrzynka nie ma ustawionej wysyłki (SMTP) – uzupełnij w Ustawieniach.',
+    connOk: 'OK', saveFirst: 'Najpierw zapisz.', reprocess: 'Przetwórz e-maile ponownie', reprocessConfirm: 'Zlecenia z tej skrzynki, przy których nic jeszcze nie zrobiono (nowe, bez technika), zostaną usunięte, a e-maile przetworzone ponownie według aktualnych ustawień. Kontynuować?',
+    reportBtn: 'Wyślij raport klientowi', reportResend: 'Wyślij raport ponownie', reportSent: 'Raport wysłany', reportTo: 'Do', reportBody: 'Treść', reportPhotos: 'Zdjęcia w załączniku', reportSend: 'Wyślij', reportNoSmtp: 'Skrzynka nie ma ustawionej wysyłki (SMTP) – uzupełnij w Ustawieniach.',
     parser: 'Przetwarzanie e-maili', parsers: { ai: 'AI (ogólne e-maile, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (stały format)' },
     parserHint: 'RITM: przetwarzane są tylko e-maile z RITM w temacie; ten sam RITM = to samo zlecenie; nieznany box zostanie założony automatycznie.', extId: 'ID zewnętrzne (ID boxu)',
   },
@@ -1472,7 +1474,7 @@ async function mailboxForm(m, prj) {
       <div class="small" id="mb-out"></div>
       <div class="banner err" id="mberr" hidden></div>
       <div class="modal-foot">
-        ${m ? `<button type="button" class="btn" id="mb-test">${esc(t('testConn'))}</button><button type="button" class="btn" id="mb-fetch">${esc(t('fetchNow'))}</button>` : ''}
+        ${m ? `<button type="button" class="btn" id="mb-test">${esc(t('testConn'))}</button><button type="button" class="btn" id="mb-fetch">${esc(t('fetchNow'))}</button><button type="button" class="btn danger" id="mb-reproc">↻ ${esc(t('reprocess'))}</button>` : ''}
         <button type="button" class="btn" data-close>${esc(t('close'))}</button><button class="btn primary">${esc(t('save'))}</button>
       </div>
     </form>`, (d, close) => {
@@ -1507,6 +1509,14 @@ async function mailboxForm(m, prj) {
         const r = await api('POST', `/admin/mailboxes/${m.id}/test`);
         const line = (label, x) => (x ? `${label}: ${x.ok ? '✅ ' + esc(t('connOk')) + (x.messages != null ? ` (${x.messages} ✉)` : '') : '❌ ' + esc(x.error)}` : '');
         out.innerHTML = [line('IMAP', r.imap), line('SMTP', r.smtp)].filter(Boolean).join('<br>');
+      } catch (ex) { out.textContent = errText(ex); }
+    });
+    d.querySelector('#mb-reproc')?.addEventListener('click', async () => {
+      if (!window.confirm(t('reprocessConfirm'))) return;
+      out.textContent = '…';
+      try {
+        const r = await api('POST', `/admin/mailboxes/${m.id}/reprocess`);
+        out.innerHTML = `✅ ${r.reprocessed} ✉ · 🗑 ${r.deleted_tickets} · ⏸ ${r.kept}`;
       } catch (ex) { out.textContent = errText(ex); }
     });
     d.querySelector('#mb-fetch')?.addEventListener('click', async () => {

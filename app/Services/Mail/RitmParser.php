@@ -16,6 +16,19 @@ namespace App\Services\Mail;
  */
 class RitmParser
 {
+    /**
+     * Automatické upozornění (SLA „dosáhlo 50 %“, „breach“, připomínky) – není to nový servis,
+     * nezakládá se zakázka ani se nepřipojuje k existující.
+     */
+    public function isAutomaticNotice(?string $subject, ?string $body): bool
+    {
+        $s = mb_strtolower((string) $subject);
+        $b = mb_strtolower(mb_substr((string) $body, 0, 1500));
+
+        return (bool) preg_match('/\bsla\b.*(dosáhl|dosahl|reached|breach|překroč|prekroc|\d+[,.]?\d*\s*%)/u', $s)
+            || (bool) preg_match('/automatick\w* upozorněn\w*.*\bsla\b|\bsla\b.*(dosáhlo|reached)\s+\d/u', $s.' '.$b);
+    }
+
     public function ritm(?string $subject): ?string
     {
         return $subject && preg_match('/RITM(\d+)/i', $subject, $m) ? 'RITM'.$m[1] : null;

@@ -345,6 +345,44 @@ class EmailIntakeTest extends TestCase
         $this->postJson("/api/v1/tickets/{$ticket->id}/client-report", ['body' => 'x'])->assertForbidden();
     }
 
+    public function test_sla_notice_never_creates_ticket(): void
+    {
+        foreach (['ai', 'zasilkovna_ritm'] as $i => $parser) {
+            $this->mailbox->update(['parser' => $parser]);
+            $this->reader->messages[] = $this->msg(10 + $i, "<sla-$i@packeta>", 'Automatické upozornění SLA – RITM0101874 dosáhlo 50,02 %', 'SLA požadavku dosáhlo 50 %.');
+            $this->runImport();
+        }
+
+        $this->assertSame(0, Ticket::count());
+        $this->assertSame(['ignored', 'ignored'], InboundEmail::orderBy('id')->pluck('status')->all());
+        $this->assertCount(0, $this->sent);
+    }
+
+    public function test_reprocess_after_switching_mailbox_to_ritm(): void
+    {
+        // schránka omylem v režimu AI → zakázky bez RITM a s nejasnou provozovnou, duplicitní RITM
+        $this->reader->messages[] = $this->msg(10, '<r1@packeta>', 'RITM0012345 - Service request', $this->ritmBody());
+        $this->reader->messages[] = $this->msg(11, '<r2@packeta>', 'RITM0012345 - Service request', $this->ritmBody());
+        $this->runImport();
+        $this->assertSame(2, Ticket::count());
+        $this->assertNull(Ticket::first()->external_ref);
+
+        // jedna z nich už je rozpracovaná → zůstane
+        $kept = Ticket::first();
+        $kept->update(['assigned_technician_id' => $this->tech1->id, 'status' => TicketStatus::Assigned]);
+
+        Sanctum::actingAs($this->admin);
+        $this->patchJson("/api/v1/admin/mailboxes/{$this->mailbox->id}", ['parser' => 'zasilkovna_ritm'])->assertOk();
+        $this->postJson("/api/v1/admin/mailboxes/{$this->mailbox->id}/reprocess")->assertOk()
+            ->assertJsonPath('deleted_tickets', 1)->assertJsonPath('kept', 1);
+
+        // druhý e-mail teď vytvořil zakázku s RITM a boxem
+        $this->assertSame(2, Ticket::count());
+        $new = Ticket::whereKeyNot($kept->id)->sole();
+        $this->assertSame('RITM0012345', $new->external_ref);
+        $this->assertSame('CZ-OST1234', $new->location->code);
+    }
+
     public function test_mailbox_admin_and_email_access(): void
     {
         Sanctum::actingAs($this->dispecer);

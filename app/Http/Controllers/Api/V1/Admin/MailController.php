@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Enums\Role;
+use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Attachment;
 use App\Models\InboundEmail;
 use App\Models\Mailbox;
 use App\Models\Setting;
+use App\Models\TicketMessageId;
 use App\Models\User;
 use App\Services\Mail\EmailClassifier;
 use App\Services\Mail\InboundEmailProcessor;
@@ -15,6 +18,7 @@ use App\Services\Mail\MailboxReader;
 use App\Services\Mail\RitmParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -102,6 +106,43 @@ class MailController extends Controller
         $n = $importer->import($mailbox);
 
         return response()->json(['ok' => $mailbox->last_error === null, 'new' => $n, 'error' => $mailbox->last_error]);
+    }
+
+    /**
+     * Znovu zpracovat e-maily schránky (např. po změně režimu na Zásilkovna RITM).
+     * Smaže jen zakázky, na kterých se ještě nic nedělalo (stav nový, bez technika, bez návštěv).
+     */
+    public function reprocess(Request $request, Mailbox $mailbox): JsonResponse
+    {
+        $this->ensureAdmin($request->user());
+        $processor = app(InboundEmailProcessor::class);
+        $stats = ['reprocessed' => 0, 'kept' => 0, 'deleted_tickets' => 0];
+
+        $emails = $mailbox->emails()->whereIn('status', ['ticket', 'review', 'ignored', 'error', 'new'])->orderBy('id')->get();
+        foreach ($emails as $email) {
+            $ticket = $email->ticket;
+            if ($ticket) {
+                $untouched = $ticket->status === TicketStatus::New && ! $ticket->assigned_technician_id && ! $ticket->visits()->exists()
+                    && InboundEmail::where('ticket_id', $ticket->id)->where('id', '!=', $email->id)->where('status', 'appended')->doesntExist();
+                if (! $untouched) {
+                    $stats['kept']++;
+
+                    continue;
+                }
+                DB::transaction(function () use ($ticket) {
+                    Attachment::where('attachable_type', 'ticket')->where('attachable_id', $ticket->id)->delete(); // soubory zůstávají u e-mailu
+                    TicketMessageId::where('ticket_id', $ticket->id)->delete();
+                    InboundEmail::where('ticket_id', $ticket->id)->update(['ticket_id' => null]);
+                    $ticket->forceDelete();
+                });
+                $stats['deleted_tickets']++;
+            }
+            $email->update(['status' => 'new', 'ticket_id' => null, 'error' => null, 'ai_result' => null, 'processed_at' => null]);
+            $processor->process($email->fresh('mailbox'));
+            $stats['reprocessed']++;
+        }
+
+        return response()->json(['ok' => true] + $stats);
     }
 
     private function validateMailbox(Request $request, ?Mailbox $mb): array

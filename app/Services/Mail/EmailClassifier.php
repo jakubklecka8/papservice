@@ -78,7 +78,7 @@ Jsi asistent servisního dispečinku firmy PAP Service. Z příchozího e-mailu 
 Koncoví zákazníci projektu: {$customers}.
 Typy práce: {$this->list($types)}.
 Pravidla:
-- is_request = false jen pokud e-mail zjevně není požadavek na servis/instalaci (reklama, faktura, newsletter, automatická odpověď, poděkování bez požadavku).
+- is_request = false, pokud e-mail není nový požadavek na servis/instalaci: reklama, faktura, newsletter, automatická odpověď, SLA upozornění/připomínka („dosáhlo 50 %“, breach), změna stavu, poděkování bez požadavku.
 - location_hints vyplň jen tím, co v e-mailu opravdu je (kód/číslo provozovny, značka, město, ulice, PSČ, název). Nic nevymýšlej.
 - title: krátký popis závady/práce (max 80 znaků) v jazyce e-mailu.
 - summary: 1–3 věty, co se stalo a co je potřeba, v češtině.

@@ -36,6 +36,14 @@ class InboundEmailProcessor
         }
         $email->loadMissing('mailbox');
 
+        // SLA upozornění a podobné automatické zprávy nejsou servis – jen zaznamenat
+        if ($this->ritm->isAutomaticNotice($email->subject, $email->body_text)) {
+            $email->update(['status' => 'ignored', 'processed_at' => now(),
+                'ai_result' => ['engine' => 'rule', 'reason' => 'Automatické upozornění (SLA) – není nový servis.']]);
+
+            return;
+        }
+
         try {
             if ($ticket = $this->findThread($email)) {
                 $this->append($email, $ticket);
