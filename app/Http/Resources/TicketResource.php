@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Ticket;
+use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -65,6 +66,11 @@ class TicketResource extends JsonResource
             'client_report_sent_at' => $this->when(! $customerOnly, fn () => $this->client_report_sent_at?->toIso8601String()),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+            // cena jen pro dispečera projektu, admina, ekonoma, společníka – ne technik ani zákazník
+            'price' => $this->when(
+                $this->relationLoaded('visits') && $user && ($user->canReadAllProjects() || $user->can('manage', $this->resource)),
+                fn () => app(PricingService::class)->quote($this->resource),
+            ),
             'visits' => $this->when(! $customerOnly && $this->relationLoaded('visits'), fn () => VisitResource::collection($this->visits)),
             'history' => $this->when(! $customerOnly && $this->relationLoaded('history'), fn () => $this->history->map(fn ($h) => [
                 'from' => $h->from_status,

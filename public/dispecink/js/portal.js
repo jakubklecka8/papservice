@@ -139,6 +139,34 @@ const T = {
 };
 
 let lang = localStorage.getItem('pap_portal_lang') || 'cs';
+// ---- vyúčtování a ceník
+Object.assign(T.cs, {
+  navBilling: 'Vyúčtování', price: 'Cena', priceEdit: 'Upravit cenu', priceBase: 'Základ (výjezd)', priceKmRate: 'Sazba za km',
+  priceKm: 'Ujeto km', priceKmAmount: 'Za km', priceExtra: 'Příplatky / slevy', priceTotal: 'Celkem', priceManual: 'ručně',
+  priceTotalOverride: 'Pevná celková částka', priceTotalHint: 'Vyplň, když má zakázka dohodnutou pevnou cenu – přepíše výpočet.',
+  priceFromTariff: 'z ceníku', priceNote: 'Poznámka k ceně', currency: 'Měna', priceLocked: 'Ceník zamrazen při uzavření',
+  noTariff: 'Projekt nemá ceník – nastav ho v Nastavení.', priceReset: 'Vrátit na ceník',
+  tariffs: 'Ceník', newTariff: 'Nová položka ceníku', allTypes: 'všechny typy', tariffBase: 'Cena za zakázku', tariffKm: 'Za km',
+  tariffNote: 'Poznámka', del: 'Smazat', project: 'Projekt',
+  billFrom: 'Od', billTo: 'Do', billStatus: 'Zakázky', billDone: 'Hotové + uzavřené', billClosed: 'Jen uzavřené', billAll: 'Všechny (i rozpracované)',
+  billExport: 'Export do Excelu (CSV)', billByProject: 'Podle projektu', billByTech: 'Podle technika', billCount: 'Počet',
+  billDate: 'Výjezd', billEmpty: 'V tomto období nejsou žádné zakázky s výjezdem.', thisMonth: 'Tento měsíc', lastMonth: 'Minulý měsíc',
+});
+Object.assign(T.pl, {
+  navBilling: 'Rozliczenie', price: 'Cena', priceEdit: 'Edytuj cenę', priceBase: 'Podstawa (wyjazd)', priceKmRate: 'Stawka za km',
+  priceKm: 'Przejechane km', priceKmAmount: 'Za km', priceExtra: 'Dopłaty / rabaty', priceTotal: 'Razem', priceManual: 'ręcznie',
+  priceTotalOverride: 'Stała kwota całkowita', priceTotalHint: 'Wypełnij, gdy zlecenie ma ustaloną stałą cenę – nadpisze wyliczenie.',
+  priceFromTariff: 'z cennika', priceNote: 'Uwaga do ceny', currency: 'Waluta', priceLocked: 'Cennik zamrożony przy zamknięciu',
+  noTariff: 'Projekt nie ma cennika – ustaw go w Ustawieniach.', priceReset: 'Przywróć cennik',
+  tariffs: 'Cennik', newTariff: 'Nowa pozycja cennika', allTypes: 'wszystkie typy', tariffBase: 'Cena za zlecenie', tariffKm: 'Za km',
+  tariffNote: 'Uwaga', del: 'Usuń', project: 'Projekt',
+  billFrom: 'Od', billTo: 'Do', billStatus: 'Zlecenia', billDone: 'Wykonane + zamknięte', billClosed: 'Tylko zamknięte', billAll: 'Wszystkie',
+  billExport: 'Eksport do Excela (CSV)', billByProject: 'Wg projektu', billByTech: 'Wg technika', billCount: 'Ilość',
+  billDate: 'Wyjazd', billEmpty: 'W tym okresie brak zleceń z wyjazdem.', thisMonth: 'Ten miesiąc', lastMonth: 'Poprzedni miesiąc',
+});
+const money = (v, cur) => Number(v || 0).toLocaleString(locale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ' + (cur === 'CZK' ? 'Kč' : cur === 'EUR' ? '€' : cur === 'PLN' ? 'zł' : cur || '');
+const canMoney = () => has('admin', 'dispecer', 'ekonom', 'spolecnik');
+
 const t = (k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), T[lang]) ?? k;
 
 // ================================================================ API
@@ -306,6 +334,7 @@ async function route() {
   if (path === '/locations') return renderLocations(q);
   if (path === '/stock') return renderStock(q);
   if (path === '/emails' && has('admin', 'dispecer')) return renderEmails(q);
+  if (path === '/billing' && canMoney()) return renderBilling(q);
   if (path === '/settings' && isAdmin()) return renderSettings();
   if (path === '/users' && isAdmin()) return renderUsers();
   location.hash = '#/';
@@ -318,6 +347,7 @@ function shell(active) {
     ['locations', '#/locations', '📍', t('navLocations')],
     has('admin', 'dispecer', 'ekonom', 'spolecnik') ? ['stock', '#/stock', '📦', t('navStock')] : null,
     has('admin', 'dispecer') ? ['emails', '#/emails', '📧', t('navEmails')] : null,
+    canMoney() ? ['billing', '#/billing', '💰', t('navBilling')] : null,
     isAdmin() ? ['settings', '#/settings', '⚙️', t('navSettings')] : null,
     isAdmin() ? ['users', '#/users', '👥', t('navUsers')] : null,
   ].filter(Boolean);
@@ -795,12 +825,14 @@ async function renderTicket(id) {
         ${history ? `<div class="card"><h2>${esc(t('history'))}</h2><div class="history">${history}</div></div>` : ''}
       </div>
       <div>
+        ${tk.price ? priceCard(tk.price, manage) : ''}
         ${protocols ? `<div class="card"><h2>${esc(t('protocols'))}</h2>${protocols}</div>` : ''}
         <div class="card"><h2>${esc(t('visits'))}</h2>${visitsHtml || `<div class="muted">${esc(t('noVisits'))}</div>`}</div>
       </div>
     </div>`;
 
   el.querySelector('#btn-report')?.addEventListener('click', () => clientReport(id));
+  el.querySelector('#btn-price')?.addEventListener('click', () => editPrice(tk));
 
   el.querySelectorAll('[data-useloc]').forEach((b) => {
     b.onclick = async () => {
@@ -1402,13 +1434,21 @@ async function openEmail(id) {
 
 async function renderSettings() {
   const el = shell('settings');
-  let ai, mbs, prj;
+  let ai, mbs, prj, tariffs;
   try {
-    [ai, mbs, prj] = await Promise.all([api('GET', '/admin/ai'), api('GET', '/admin/mailboxes').then((r) => r.data), projects()]);
+    [ai, mbs, prj, tariffs] = await Promise.all([api('GET', '/admin/ai'), api('GET', '/admin/mailboxes').then((r) => r.data), projects(), api('GET', '/tariffs').then((r) => r.data)]);
   } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
 
   el.innerHTML = `
     <div class="page-head"><h1>⚙️ ${esc(t('navSettings'))}</h1></div>
+    <div class="card" style="max-width:860px">
+      <h2>💰 ${esc(t('tariffs'))}<span class="sp"></span><button class="btn sm primary" id="tf-add">➕ ${esc(t('newTariff'))}</button></h2>
+      ${tariffs.length ? `<table class="tbl"><thead><tr><th>${esc(t('project'))}</th><th>${esc(t('serviceType'))}</th><th class="num">${esc(t('tariffBase'))}</th><th class="num">${esc(t('tariffKm'))}</th><th>${esc(t('tariffNote'))}</th></tr></thead><tbody>
+        ${tariffs.map((x, i) => `<tr data-tf="${i}" style="cursor:pointer"><td><strong>${esc(x.project?.name || '')}</strong></td><td>${esc(x.service_type ? t('stype.' + x.service_type) : t('allTypes'))}</td>
+          <td class="num">${esc(money(x.base_price, x.currency))}</td><td class="num">${esc(money(x.km_rate, x.currency))}</td><td class="muted small">${esc(x.note || '')}</td></tr>`).join('')}
+      </tbody></table>` : `<p class="muted">—</p>`}
+    </div>
+
     <div class="card" style="max-width:860px">
       <h2>🤖 ${esc(t('aiTitle'))}</h2>
       <p class="small">${esc(t('apiKey'))}: <strong>${ai.has_key ? esc(t('apiKeySet')) + ' (' + esc(ai.key_hint) + ')' : esc(t('apiKeyNone'))}</strong></p>
@@ -1449,6 +1489,8 @@ async function renderSettings() {
     await api('PUT', '/admin/ai', { remove_key: true }); renderSettings();
   });
   el.querySelector('#mb-add').onclick = () => mailboxForm(null, prj);
+  el.querySelector('#tf-add').onclick = () => tariffForm(null, prj);
+  el.querySelectorAll('[data-tf]').forEach((r) => { r.onclick = () => tariffForm(tariffs[Number(r.dataset.tf)], prj); });
   el.querySelectorAll('[data-mb]').forEach((d) => { d.onclick = () => mailboxForm(mbs[Number(d.dataset.mb)], prj); });
 }
 
@@ -1549,3 +1591,180 @@ async function mailboxForm(m, prj) {
 
 window.addEventListener('hashchange', route);
 route();
+
+
+// ================================================================ cena, ceník, vyúčtování
+
+function priceCard(p, manage) {
+  const tag = (ov) => (ov === null || ov === undefined ? `<span class="muted small"> · ${esc(t('priceFromTariff'))}</span>` : `<span class="small" style="color:var(--warn,#b26a00)"> · ${esc(t('priceManual'))}</span>`);
+  return `<div class="card">
+    <h2>💰 ${esc(t('price'))}<span class="sp"></span>${manage ? `<button class="btn sm" id="btn-price">✏️ ${esc(t('priceEdit'))}</button>` : ''}</h2>
+    ${!p.tariff && p.overrides.base === null && p.overrides.total === null ? `<div class="banner warn small">${esc(t('noTariff'))}</div>` : ''}
+    <dl class="kv">
+      <dt>${esc(t('priceBase'))}</dt><dd>${esc(money(p.base, p.currency))}${tag(p.overrides.base)}</dd>
+      <dt>${esc(t('priceKm'))}</dt><dd>${esc(qtyFmtNum(p.km))} km × ${esc(money(p.km_rate, p.currency))}${tag(p.overrides.km_rate)} = <strong>${esc(money(p.km_amount, p.currency))}</strong></dd>
+      ${p.extra ? `<dt>${esc(t('priceExtra'))}</dt><dd>${esc(money(p.extra, p.currency))}</dd>` : ''}
+      ${p.manual_total ? `<dt class="muted">${esc(t('priceTotal'))} (${esc(t('priceFromTariff'))})</dt><dd class="muted"><s>${esc(money(p.computed, p.currency))}</s></dd>` : ''}
+      <dt>${esc(t('priceTotal'))}</dt><dd><strong style="font-size:18px">${esc(money(p.total, p.currency))}</strong>${p.manual_total ? ` <span class="small" style="color:var(--warn,#b26a00)">(${esc(t('priceManual'))})</span>` : ''}</dd>
+      ${p.note ? `<dt>${esc(t('priceNote'))}</dt><dd>${esc(p.note)}</dd>` : ''}
+    </dl>
+    ${p.locked_at ? `<div class="muted small">🔒 ${esc(t('priceLocked'))} · ${esc(fmt(p.locked_at))}</div>` : ''}
+  </div>`;
+}
+const qtyFmtNum = (n) => Number(n || 0).toLocaleString(locale(), { maximumFractionDigits: 1 });
+
+async function editPrice(tk) {
+  const p = tk.price;
+  const ph = (v, cur) => (v === null || v === undefined ? '' : String(v));
+  const num = (v) => (v === '' || v === null ? null : Number(String(v).replace(',', '.')));
+  await modal(`
+    <h3>💰 ${esc(t('priceEdit'))} · ${esc(tk.number)}</h3>
+    <form id="pf">
+      <div class="form-grid">
+        <label class="f"><span>${esc(t('priceBase'))}</span><input type="text" inputmode="decimal" name="price_base" value="${esc(ph(p.overrides.base))}" placeholder="${esc(p.tariff ? p.tariff.base_price + ' (' + t('priceFromTariff') + ')' : '0')}"></label>
+        <label class="f"><span>${esc(t('priceKmRate'))}</span><input type="text" inputmode="decimal" name="price_km_rate" value="${esc(ph(p.overrides.km_rate))}" placeholder="${esc(p.tariff ? p.tariff.km_rate + ' (' + t('priceFromTariff') + ')' : '0')}"></label>
+        <label class="f"><span>${esc(t('priceExtra'))}</span><input type="text" inputmode="decimal" name="price_extra" value="${esc(ph(p.overrides.extra))}" placeholder="0"></label>
+        <label class="f"><span>${esc(t('currency'))}</span><select name="price_currency">
+          <option value="">${esc(p.tariff ? p.tariff.currency + ' (' + t('priceFromTariff') + ')' : 'CZK')}</option>
+          ${['CZK', 'EUR', 'PLN'].map((c) => `<option ${p.overrides.currency === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+        <label class="f full"><span>${esc(t('priceTotalOverride'))}</span><input type="text" inputmode="decimal" name="price_total" value="${esc(ph(p.overrides.total))}" placeholder="${esc(t('priceFromTariff'))}: ${esc(money(p.computed, p.currency))}">
+          <small class="muted">${esc(t('priceTotalHint'))}</small></label>
+        <label class="f full"><span>${esc(t('priceNote'))}</span><input type="text" name="price_note" maxlength="255" value="${esc(p.note || '')}"></label>
+      </div>
+      <div class="banner err" id="perr" hidden></div>
+      <div class="modal-foot">
+        <button type="button" class="btn" id="p-reset">↺ ${esc(t('priceReset'))}</button><span class="sp"></span>
+        <button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button>
+      </div>
+    </form>`, (d, close) => {
+    const f = d.querySelector('#pf');
+    const send = async (body) => {
+      try {
+        await api('PATCH', `/tickets/${tk.id}/price`, body);
+        close(true); toast(t('saved')); renderTicket(tk.id);
+      } catch (ex) { const e = d.querySelector('#perr'); e.textContent = errText(ex); e.hidden = false; }
+    };
+    d.querySelector('#p-reset').onclick = () => send({ price_base: null, price_km_rate: null, price_extra: null, price_total: null, price_currency: null, price_note: f.price_note.value.trim() || null });
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      send({
+        price_base: num(f.price_base.value.trim()), price_km_rate: num(f.price_km_rate.value.trim()),
+        price_extra: num(f.price_extra.value.trim()), price_total: num(f.price_total.value.trim()),
+        price_currency: f.price_currency.value || null, price_note: f.price_note.value.trim() || null,
+      });
+    };
+  });
+}
+
+async function tariffForm(x, prj) {
+  const cur = x || { currency: 'CZK', base_price: 0, km_rate: 0, service_type: 'servis' };
+  const types = ['servis', 'profilaxe', 'udrzba', 'instalace'];
+  await modal(`
+    <h3>💰 ${esc(x ? t('tariffs') + ' · ' + (x.project?.name || '') : t('newTariff'))}</h3>
+    <form id="tf">
+      <div class="form-grid">
+        <label class="f"><span class="req">${esc(t('project'))}</span><select name="project_id" ${x ? 'disabled' : ''}>${prj.map((p) => `<option value="${p.id}" ${x?.project?.id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <label class="f"><span>${esc(t('serviceType'))}</span><select name="service_type"><option value="">${esc(t('allTypes'))}</option>${types.map((s) => `<option value="${s}" ${cur.service_type === s ? 'selected' : ''}>${esc(t('stype.' + s))}</option>`).join('')}</select></label>
+        <label class="f"><span class="req">${esc(t('tariffBase'))}</span><input type="text" inputmode="decimal" name="base_price" required value="${esc(cur.base_price)}"></label>
+        <label class="f"><span class="req">${esc(t('tariffKm'))}</span><input type="text" inputmode="decimal" name="km_rate" required value="${esc(cur.km_rate)}"></label>
+        <label class="f"><span>${esc(t('currency'))}</span><select name="currency">${['CZK', 'EUR', 'PLN'].map((c) => `<option ${cur.currency === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+        <label class="f"><span>${esc(t('tariffNote'))}</span><input type="text" name="note" maxlength="255" value="${esc(cur.note || '')}"></label>
+      </div>
+      <div class="banner err" id="terr" hidden></div>
+      <div class="modal-foot">
+        ${x ? `<button type="button" class="btn danger" id="tf-del">${esc(t('del'))}</button>` : ''}<span class="sp"></span>
+        <button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button>
+      </div>
+    </form>`, (d, close) => {
+    const f = d.querySelector('#tf');
+    const err = (ex) => { const e = d.querySelector('#terr'); e.textContent = errText(ex); e.hidden = false; };
+    d.querySelector('#tf-del')?.addEventListener('click', async () => {
+      if (!(await confirmModal(t('del') + '?'))) { renderSettings(); return; }
+      try { await api('DELETE', `/tariffs/${x.id}`); toast(t('saved')); renderSettings(); } catch (ex) { toast(errText(ex), true); }
+    });
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const body = {
+        service_type: f.service_type.value || null, currency: f.currency.value, note: f.note.value.trim() || null,
+        base_price: Number(f.base_price.value.replace(',', '.')), km_rate: Number(f.km_rate.value.replace(',', '.')),
+      };
+      try {
+        if (x) await api('PATCH', `/tariffs/${x.id}`, body);
+        else await api('POST', '/tariffs', { ...body, project_id: Number(f.project_id.value) });
+        close(true); toast(t('saved')); renderSettings();
+      } catch (ex) { err(ex); }
+    };
+  });
+}
+
+async function renderBilling(q) {
+  const el = shell('billing');
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const now = new Date();
+  const from = q.get('from') || ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+  const to = q.get('to') || ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const params = new URLSearchParams({ from, to, status: q.get('status') || 'done' });
+  if (q.get('project_id')) params.set('project_id', q.get('project_id'));
+
+  let r, prj;
+  try { [r, prj] = await Promise.all([api('GET', '/billing?' + params), projects()]); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+
+  const go = (over) => { const n = new URLSearchParams(params); Object.entries(over).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); location.hash = '#/billing?' + n; };
+  const sumTable = (rows, key, label) => rows.length ? `<table class="tbl"><thead><tr><th>${esc(label)}</th><th class="num">${esc(t('billCount'))}</th><th class="num">km</th><th class="num">${esc(t('priceTotal'))}</th></tr></thead><tbody>
+    ${rows.map((x) => `<tr><td>${esc(x[key])}</td><td class="num">${x.count}</td><td class="num">${esc(qtyFmtNum(x.km))}</td><td class="num"><strong>${esc(money(x.total, x.currency))}</strong></td></tr>`).join('')}</tbody></table>` : '';
+
+  el.innerHTML = `
+    <div class="page-head"><h1>💰 ${esc(t('navBilling'))}</h1></div>
+    <div class="card">
+      <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:end">
+        <label class="f"><span>${esc(t('billFrom'))}</span><input type="date" id="b-from" value="${esc(from)}"></label>
+        <label class="f"><span>${esc(t('billTo'))}</span><input type="date" id="b-to" value="${esc(to)}"></label>
+        <label class="f"><span>${esc(t('project'))}</span><select id="b-prj"><option value="">${esc(t('allProjects'))}</option>${prj.map((p) => `<option value="${p.id}" ${String(p.id) === q.get('project_id') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <label class="f"><span>${esc(t('billStatus'))}</span><select id="b-st">${[['done', 'billDone'], ['closed', 'billClosed'], ['all', 'billAll']].map(([v, k]) => `<option value="${v}" ${params.get('status') === v ? 'selected' : ''}>${esc(t(k))}</option>`).join('')}</select></label>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn sm" id="b-this">${esc(t('thisMonth'))}</button>
+        <button class="btn sm" id="b-last">${esc(t('lastMonth'))}</button>
+        <span class="sp"></span>
+        <button class="btn primary" id="b-csv">⬇ ${esc(t('billExport'))}</button>
+      </div>
+    </div>
+
+    ${r.totals.length ? `<div class="card"><div class="btn-row" style="gap:24px">${r.totals.map((x) => `<div><div class="muted small">${x.count}× · ${esc(qtyFmtNum(x.km))} km</div><div style="font-size:24px;font-weight:700">${esc(money(x.total, x.currency))}</div></div>`).join('')}</div></div>` : ''}
+
+    <div class="grid-2" style="grid-template-columns:1fr 1fr">
+      <div class="card"><h2>${esc(t('billByProject'))}</h2>${sumTable(r.by_project, 'project', t('project')) || '<p class="muted">—</p>'}</div>
+      <div class="card"><h2>${esc(t('billByTech'))}</h2>${sumTable(r.by_technician, 'technician', t('col.tech')) || '<p class="muted">—</p>'}</div>
+    </div>
+
+    <div class="card" style="overflow-x:auto">
+      ${r.data.length ? `<table class="tbl"><thead><tr>
+        <th>${esc(t('col.number'))}</th><th>${esc(t('col.location'))}</th><th>${esc(t('col.tech'))}</th><th>${esc(t('billDate'))}</th><th>${esc(t('col.status'))}</th>
+        <th class="num">${esc(t('priceBase'))}</th><th class="num">km</th><th class="num">${esc(t('priceKmAmount'))}</th><th class="num">${esc(t('priceExtra'))}</th><th class="num">${esc(t('priceTotal'))}</th></tr></thead><tbody>
+        ${r.data.map((x) => `<tr data-open="${x.id}" style="cursor:pointer">
+          <td><strong>${esc(x.number || '#' + x.id)}</strong>${x.external_ref ? `<div class="muted small">${esc(x.external_ref)}</div>` : ''}</td>
+          <td>${esc(x.location || '')}<div class="muted small">${esc(x.project || '')}${x.city ? ' · ' + esc(x.city) : ''}</div></td>
+          <td>${esc(x.technician)}</td><td>${esc(fmt(x.date, false))}</td><td>${chip(x.status, t('status.' + x.status))}</td>
+          <td class="num">${esc(money(x.base, x.currency))}</td><td class="num">${esc(qtyFmtNum(x.km))}</td><td class="num">${esc(money(x.km_amount, x.currency))}</td>
+          <td class="num">${x.extra ? esc(money(x.extra, x.currency)) : ''}</td>
+          <td class="num"><strong>${esc(money(x.total, x.currency))}</strong>${x.manual_total ? `<div class="small" style="color:var(--warn,#b26a00)">${esc(t('priceManual'))}</div>` : ''}</td></tr>`).join('')}
+      </tbody></table>` : `<p class="muted">${esc(t('billEmpty'))}</p>`}
+    </div>`;
+
+  el.querySelector('#b-from').onchange = (e) => go({ from: e.target.value });
+  el.querySelector('#b-to').onchange = (e) => go({ to: e.target.value });
+  el.querySelector('#b-prj').onchange = (e) => go({ project_id: e.target.value });
+  el.querySelector('#b-st').onchange = (e) => go({ status: e.target.value });
+  el.querySelector('#b-this').onclick = () => go({ from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0)) });
+  el.querySelector('#b-last').onclick = () => go({ from: ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: ymd(new Date(now.getFullYear(), now.getMonth(), 0)) });
+  el.querySelectorAll('[data-open]').forEach((tr) => { tr.onclick = () => { location.hash = '#/t/' + tr.dataset.open; }; });
+  el.querySelector('#b-csv').onclick = async () => {
+    try {
+      const res = await api('GET', '/billing/export?' + params, undefined, { raw: true });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(await res.blob());
+      a.download = `vyuctovani_${from}_${to}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { toast(errText(e), true); }
+  };
+}

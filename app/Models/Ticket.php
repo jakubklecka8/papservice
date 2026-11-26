@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TicketStatus;
+use App\Services\PricingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,6 +22,7 @@ class Ticket extends Model
         'uuid', 'external_ref', 'project_id', 'end_customer_id', 'location_id', 'service_type', 'priority', 'status', 'source', 'needs_review',
         'title', 'description', 'created_by', 'reporter_name', 'reporter_email', 'reporter_phone',
         'assigned_technician_id', 'assigned_by', 'assigned_at', 'due_at', 'closed_at', 'client_report_sent_at', 'client_report_by', 'legacy_id', 'legacy_status',
+        'price_currency', 'price_base', 'price_km_rate', 'price_extra', 'price_total', 'price_note', 'price_locked_at',
     ];
 
     protected function casts(): array
@@ -32,6 +34,7 @@ class Ticket extends Model
             'due_at' => 'datetime',
             'closed_at' => 'datetime',
             'client_report_sent_at' => 'datetime',
+            'price_locked_at' => 'datetime',
         ];
     }
 
@@ -142,6 +145,10 @@ class Ticket extends Model
             $this->closed_at ??= now();
         }
         $this->save();
+
+        if ($to === TicketStatus::Closed) {
+            app(PricingService::class)->lock($this);
+        }
 
         $this->history()->create([
             'from_status' => $from?->value,

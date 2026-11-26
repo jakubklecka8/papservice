@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Admin\MailController;
 use App\Http\Controllers\Api\V1\Admin\UserController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\ProtocolController;
@@ -61,6 +62,14 @@ Route::prefix('v1')->group(function () {
         Route::get('emails', [MailController::class, 'emails']);
         Route::get('emails/{email}', [MailController::class, 'email']);
         Route::post('emails/{email}/action', [MailController::class, 'emailAction']);
+
+        Route::get('tariffs', [BillingController::class, 'tariffs']);
+        Route::post('tariffs', [BillingController::class, 'storeTariff']);
+        Route::patch('tariffs/{tariff}', [BillingController::class, 'updateTariff']);
+        Route::delete('tariffs/{tariff}', [BillingController::class, 'destroyTariff']);
+        Route::patch('tickets/{ticket}/price', [BillingController::class, 'updateTicketPrice']);
+        Route::get('billing', [BillingController::class, 'report']);
+        Route::get('billing/export', [BillingController::class, 'export']);
 
         Route::get('tickets/summary', [TicketController::class, 'summary']);
         Route::get('tickets', [TicketController::class, 'index']);
