@@ -13,7 +13,7 @@ import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -226,7 +226,9 @@ async function drawList(items, fromCache) {
 
   const order = { urgent: 0, high: 1, normal: 2, low: 3 };
   const sorted = [...items].sort((a, b) =>
-    (order[a.priority] ?? 2) - (order[b.priority] ?? 2)
+    (a.planned_at ? 0 : 1) - (b.planned_at ? 0 : 1)
+    || (a.planned_at || '').localeCompare(b.planned_at || '')
+    || (order[a.priority] ?? 2) - (order[b.priority] ?? 2)
     || (a.due_at || '9999').localeCompare(b.due_at || '9999')
     || b.id - a.id);
 
@@ -239,6 +241,7 @@ async function drawList(items, fromCache) {
         <div class="ticket-title">${esc(tk.title)}</div>
         <div class="ticket-loc">${loc ? esc(loc.code + ' · ' + loc.name) + '<br>' + esc([loc.street, loc.city].filter(Boolean).join(', ')) : ''}</div>
         <div class="ticket-meta">
+          ${tk.planned_at ? `<span class="planned">📅 ${esc(fmtDate(tk.planned_at))}</span>` : ''}
           ${tk.due_at ? `<span>⏱ ${esc(fmtDate(tk.due_at))}</span>` : ''}
           ${tk.priority !== 'normal' ? `<span>${esc(t('prio.' + tk.priority))}</span>` : ''}
           ${pendingIds.has(String(tk.id)) ? `<span class="chip pending">⇅ ${esc(t('waitingUpload'))}</span>` : ''}
@@ -365,7 +368,10 @@ async function renderDetail(id) {
       <dl class="kv">
         <dt>${esc(t('location'))}</dt><dd><strong>${esc(loc.code)}</strong> · ${esc(loc.name)}</dd>
         <dt>${esc(t('address'))}</dt><dd>${esc([loc.street, [loc.zip, loc.city].filter(Boolean).join(' '), loc.country].filter(Boolean).join(', '))}</dd>
+        ${ticket.planned_at ? `<dt>📅 ${esc(t('planned'))}</dt><dd><strong>${esc(fmtDate(ticket.planned_at))}</strong></dd>` : ''}
         ${ticket.due_at ? `<dt>${esc(t('due'))}</dt><dd>${esc(fmtDate(ticket.due_at))}</dd>` : ''}
+        ${ticket.device ? `<dt>🔧 ${esc(t('device'))}</dt><dd>${esc(ticket.device.type)}${ticket.device.model ? ' · ' + esc(ticket.device.model) : ''}${ticket.device.serial_number ? `<br>S/N <strong>${esc(ticket.device.serial_number)}</strong>` : ''}</dd>` : ''}
+        ${ticket.checklist ? `<dt>☑ ${esc(t('checklist'))}</dt><dd>${esc(ticket.checklist.name)}</dd>` : ''}
         <dt>${esc(t('priority'))}</dt><dd>${esc(t('prio.' + ticket.priority))}</dd>
         ${ticket.reporter?.name ? `<dt>${esc(t('reporter'))}</dt><dd>${esc(ticket.reporter.name)}</dd>` : ''}
       </dl>
@@ -446,7 +452,7 @@ function newDraft(ticketId) {
     uuid: uuid(), ticketId: Number(ticketId), arrived_at: null, departed_at: null, km: null,
     work_description: '', repair_description: '', test_result: null, test_note: '', instruction_ref: '',
     parts: [], serverPhotos: [],
-    signer_name: '', signature_technician: null, signature_customer: null,
+    signer_name: '', signature_technician: null, signature_customer: null, checklist: [],
   };
 }
 
@@ -458,6 +464,7 @@ function fromServer(v, ticketId) {
     parts: (v.parts || []).map((p) => ({ ...p })),
     serverPhotos: (v.attachments || []).filter((a) => a.kind === 'photo').map((a) => a.uuid),
     signer_name: v.signer_name || '', signature_technician: v.signature_technician || null, signature_customer: v.signature_customer || null,
+    checklist: (v.checklist || []).map((c) => ({ id: c.id, result: c.result || null, note: c.note || '' })),
     status: v.status,
   };
 }
@@ -481,6 +488,15 @@ async function renderVisit(id) {
   const d = resolved.draft;
   const readonly = resolved.mode === 'readonly';
   const isM4b = ticket.project?.protocol_template === 'm4b';
+  // kontrolní seznam ze zakázky (znění bodů); odpovědi jsou v d.checklist
+  const clItems = ticket.checklist?.items || [];
+  d.checklistItems = clItems.length > 0;
+  d.checklist = d.checklist || [];
+  const clAnswer = (cid) => {
+    let a = d.checklist.find((x) => x.id === cid);
+    if (!a) { a = { id: cid, result: null, note: '' }; d.checklist.push(a); }
+    return a;
+  };
   setTop((ticket.number || '#' + id) + ' · ' + t('visit'), true);
 
   const draftKey = 'draft:' + id;
@@ -562,6 +578,19 @@ async function renderVisit(id) {
         <label class="field" style="margin:10px 0 0"><span>${esc(t('testNote'))}</span>
           <input type="text" data-f="test_note" value="${esc(d.test_note)}" ${dis}></label>
       </div>
+
+      ${clItems.length ? `
+      <div class="section-title">☑ ${esc(ticket.checklist.name)}</div>
+      <div class="card checklist">
+        ${clItems.map((it) => {
+          const a = d.checklist.find((x) => x.id === it.id) || {};
+          return `<div class="cl-item" data-cl="${esc(it.id)}">
+            <div class="cl-text ${it.required ? 'req' : ''}">${esc(it.text)}</div>
+            <div class="seg cl-seg">${['ok', 'nok', 'na'].map((r) => `<button type="button" data-r="${r}" class="${a.result === r ? 'on ' + r : ''}" ${dis}>${esc(t('cl_' + r))}</button>`).join('')}</div>
+            <input type="text" class="cl-note" placeholder="${esc(t('clNote'))}" value="${esc(a.note || '')}" ${dis} ${a.result === 'nok' || a.note ? '' : 'hidden'}>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
 
       <div class="section-title">${esc(t('parts'))}</div>
       <div id="parts">
@@ -652,10 +681,24 @@ async function renderVisit(id) {
         save.flush();
       };
     }
-    for (const b of $app.querySelectorAll('.seg button')) {
+    for (const row of $app.querySelectorAll('[data-cl]')) {
+      const a = clAnswer(row.dataset.cl);
+      const note = row.querySelector('.cl-note');
+      for (const b of row.querySelectorAll('[data-r]')) {
+        b.onclick = () => {
+          a.result = a.result === b.dataset.r ? null : b.dataset.r;
+          row.querySelectorAll('[data-r]').forEach((x) => { x.className = x.dataset.r === a.result ? 'on ' + a.result : ''; });
+          note.hidden = !(a.result === 'nok' || a.note);
+          if (a.result === 'nok') note.focus();
+          persist(); save.flush();
+        };
+      }
+      note.addEventListener('input', () => { a.note = note.value; persist(); save(); });
+    }
+    for (const b of $app.querySelectorAll('.seg:not(.cl-seg) button')) {
       b.onclick = () => {
         d.test_result = b.dataset.v;
-        $app.querySelectorAll('.seg button').forEach((x) => x.classList.toggle('on', x === b));
+        $app.querySelectorAll('.seg:not(.cl-seg) button').forEach((x) => x.classList.toggle('on', x === b));
         save.flush();
       };
     }
@@ -734,6 +777,8 @@ async function renderVisit(id) {
       if (d.parts.some((p) => !p.name.trim())) missing.push(t('partName'));
       if (d.arrived_at && d.departed_at && new Date(d.departed_at) < new Date(d.arrived_at)) missing.push(t('departed') + ' < ' + t('arrived'));
       if (isM4b && !d.signature_technician) missing.push(t('sigTech'));
+      const clMissing = clItems.filter((it) => it.required && !d.checklist.find((x) => x.id === it.id)?.result);
+      if (clMissing.length) missing.push(t('checklist') + ' (' + clMissing.length + ')');
       if (missing.length) {
         toast(t('missing') + ' ' + missing.join(', '), true, 5000);
         return;
@@ -787,6 +832,7 @@ function visitPayload(d) {
     test_note: d.test_note || null,
     instruction_ref: d.instruction_ref || null,
     signer_name: d.signer_name || null,
+    ...(d.checklistItems ? { checklist: (d.checklist || []).filter((c) => c.result || c.note).map((c) => ({ id: c.id, result: c.result || null, note: c.note || null })) } : {}),
     signature_technician: d.signature_technician || null,
     signature_customer: d.signature_customer || null,
     parts: d.parts.filter((p) => p.name && p.name.trim()).map((p) => ({

@@ -167,6 +167,46 @@ Object.assign(T.pl, {
 const money = (v, cur) => Number(v || 0).toLocaleString(locale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ' + (cur === 'CZK' ? 'Kč' : cur === 'EUR' ? '€' : cur === 'PLN' ? 'zł' : cur || '');
 const canMoney = () => has('admin', 'dispecer', 'ekonom', 'spolecnik');
 
+// ---- M4: zařízení, plánování, harmonogramy, projekty, kontrolní seznamy
+Object.assign(T.cs, {
+  navPlanning: 'Plánování', navDevices: 'Zařízení',
+  calendar: 'Kalendář', schedules: 'Harmonogramy', unplanned: 'Nenaplánované', week: 'Týden', today: 'Dnes',
+  plan: 'Naplánovat', planned: 'Naplánováno', plannedAt: 'Den a čas', unplan: 'Zrušit plán', planHint: 'Přetáhni zakázku do buňky technika, nebo klikni do buňky.',
+  absence: 'Nepřítomnost', addAbsence: '+ Nepřítomnost', absenceNote: 'Důvod (dovolená, nemoc…)', dateFrom: 'Od', dateTo: 'Do',
+  pickTicket: 'Vyber zakázku', noUnplanned: 'Vše je naplánované 👍', delete: 'Smazat',
+  schedule: 'Harmonogram', newSchedule: 'Nový harmonogram', interval: 'Interval (měsíce)', nextDue: 'Další termín', leadDays: 'Založit dní předem',
+  everyN: 'každé {n} měs.', runNow: 'Založit zakázku teď', created: 'Založeno', active: 'Aktivní', autoAssign: 'Rovnou přidělit technikovi',
+  device: 'Zařízení', devices: 'Zařízení', newDevice: 'Nové zařízení', deviceType: 'Druh zařízení', model: 'Model', serial: 'Sériové číslo',
+  installedAt: 'Instalace', handoverAt: 'Předáno', handoverTo: 'Předáno komu', devStatus: { active: 'Aktivní', removed: 'Demontováno', all: 'Vše' },
+  history: 'Historie', addEvent: '+ Záznam', evt: { install: 'Instalace', handover: 'Předání', service: 'Servis', replace: 'Výměna', remove: 'Demontáž', note: 'Poznámka' },
+  oldSerial: 'Původní S/N', newSerial: 'Nové S/N', exportCsv: '⬇ Soupis S/N (CSV)', noDevices: 'Žádná zařízení.', noDevice: '— bez zařízení —',
+  checklist: 'Kontrolní seznam', checklists: 'Kontrolní seznamy', newChecklist: 'Nový kontrolní seznam', checklistItems: 'Body (každý na řádek, * na začátku = povinný)',
+  noChecklist: '— bez seznamu —', res: { ok: 'OK', nok: 'Závada', na: 'N/A' },
+  projects: 'Projekty', newProject: 'Nový projekt', serviceTypes: 'Typy služeb', countries: 'Země (CZ, PL, DE…)', protocolTpl: 'Vzhled protokolu',
+  sla: 'SLA – termín za (hodin)', endCustomers: 'Koncoví zákazníci (KÓD;Název na řádek)', inactiveP: 'neaktivní',
+});
+Object.assign(T.pl, {
+  navPlanning: 'Planowanie', navDevices: 'Urządzenia',
+  calendar: 'Kalendarz', schedules: 'Harmonogramy', unplanned: 'Niezaplanowane', week: 'Tydzień', today: 'Dziś',
+  plan: 'Zaplanuj', planned: 'Zaplanowano', plannedAt: 'Dzień i godzina', unplan: 'Anuluj plan', planHint: 'Przeciągnij zlecenie do komórki technika lub kliknij komórkę.',
+  absence: 'Nieobecność', addAbsence: '+ Nieobecność', absenceNote: 'Powód (urlop, choroba…)', dateFrom: 'Od', dateTo: 'Do',
+  pickTicket: 'Wybierz zlecenie', noUnplanned: 'Wszystko zaplanowane 👍', delete: 'Usuń',
+  schedule: 'Harmonogram', newSchedule: 'Nowy harmonogram', interval: 'Interwał (miesiące)', nextDue: 'Następny termin', leadDays: 'Utworzyć dni wcześniej',
+  everyN: 'co {n} mies.', runNow: 'Utwórz zlecenie teraz', created: 'Utworzono', active: 'Aktywny', autoAssign: 'Od razu przydziel technikowi',
+  device: 'Urządzenie', devices: 'Urządzenia', newDevice: 'Nowe urządzenie', deviceType: 'Rodzaj urządzenia', model: 'Model', serial: 'Numer seryjny',
+  installedAt: 'Instalacja', handoverAt: 'Przekazano', handoverTo: 'Przekazano komu', devStatus: { active: 'Aktywne', removed: 'Zdemontowane', all: 'Wszystkie' },
+  history: 'Historia', addEvent: '+ Wpis', evt: { install: 'Instalacja', handover: 'Przekazanie', service: 'Serwis', replace: 'Wymiana', remove: 'Demontaż', note: 'Uwaga' },
+  oldSerial: 'Poprzedni S/N', newSerial: 'Nowy S/N', exportCsv: '⬇ Spis S/N (CSV)', noDevices: 'Brak urządzeń.', noDevice: '— bez urządzenia —',
+  checklist: 'Lista kontrolna', checklists: 'Listy kontrolne', newChecklist: 'Nowa lista kontrolna', checklistItems: 'Punkty (każdy w linii, * na początku = obowiązkowy)',
+  noChecklist: '— bez listy —', res: { ok: 'OK', nok: 'Usterka', na: 'N/D' },
+  projects: 'Projekty', newProject: 'Nowy projekt', serviceTypes: 'Typy usług', countries: 'Kraje (CZ, PL, DE…)', protocolTpl: 'Wygląd protokołu',
+  sla: 'SLA – termin za (godzin)', endCustomers: 'Klienci końcowi (KOD;Nazwa w linii)', inactiveP: 'nieaktywny',
+});
+const SERVICE_TYPES = ['servis', 'profilaxe', 'udrzba', 'instalace'];
+const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const canPlan = () => has('admin', 'dispecer');
+const canDevices = () => has('admin', 'dispecer', 'ekonom', 'spolecnik');
+
 const t = (k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), T[lang]) ?? k;
 
 // ================================================================ API
@@ -335,6 +375,8 @@ async function route() {
   if (path === '/stock') return renderStock(q);
   if (path === '/emails' && has('admin', 'dispecer')) return renderEmails(q);
   if (path === '/billing' && canMoney()) return renderBilling(q);
+  if (path === '/planning' && canPlan()) return renderPlanning(q);
+  if (path === '/devices' && canDevices()) return renderDevices(q);
   if (path === '/settings' && isAdmin()) return renderSettings();
   if (path === '/users' && isAdmin()) return renderUsers();
   location.hash = '#/';
@@ -344,7 +386,9 @@ function shell(active) {
   const nav = [
     ['tickets', '#/', '📋', t('navTickets')],
     canCreate() ? ['new', '#/new', '➕', t('navNew')] : null,
+    canPlan() ? ['planning', '#/planning', '📅', t('navPlanning')] : null,
     ['locations', '#/locations', '📍', t('navLocations')],
+    canDevices() ? ['devices', '#/devices', '🔧', t('navDevices')] : null,
     has('admin', 'dispecer', 'ekonom', 'spolecnik') ? ['stock', '#/stock', '📦', t('navStock')] : null,
     has('admin', 'dispecer') ? ['emails', '#/emails', '📧', t('navEmails')] : null,
     canMoney() ? ['billing', '#/billing', '💰', t('navBilling')] : null,
@@ -756,6 +800,9 @@ async function renderTicket(id) {
             ${v.signature_customer ? `<img src="${esc(v.signature_customer)}" alt="">` : '<span class="muted">—</span>'}
             ${v.signer_name ? `<span class="muted small">${esc(v.signer_name)}</span>` : ''}</dd>` : ''}
         </dl>
+        ${(v.checklist || []).length ? `<div class="small" style="margin:10px 0 4px;font-weight:600">☑ ${esc(t('checklist'))}</div>
+          <table class="parts no-resp"><tbody>${v.checklist.map((c) => `<tr><td>${esc(c.text)}${c.note ? `<div class="muted small">${esc(c.note)}</div>` : ''}</td>
+            <td style="width:80px;font-weight:700;${c.result === 'nok' ? 'color:var(--bad)' : c.result === 'ok' ? 'color:var(--ok)' : ''}">${c.result ? esc(t('res.' + c.result)) : '—'}</td></tr>`).join('')}</tbody></table>` : ''}
         ${parts ? `<table class="parts"><thead><tr><th>${esc(t('partName'))}</th><th>${esc(t('qty'))}</th><th>${esc(t('snOut'))}</th><th>${esc(t('snIn'))}</th></tr></thead><tbody>${parts}</tbody></table>` : ''}
         ${photos.length ? `<div class="photos">${photos.map((a) => `
           <div class="photo"><img data-att="${esc(a.uuid)}" alt="">
@@ -806,6 +853,10 @@ async function renderTicket(id) {
             ${loc ? `<dt>${esc(t('address'))}</dt><dd>${esc(addrOf(loc))}${loc.lat && loc.lng ? ` · <a href="https://www.google.com/maps?q=${loc.lat},${loc.lng}" target="_blank" rel="noopener">mapa</a>` : ''}</dd>` : ''}
             <dt>${esc(t('priority'))}</dt><dd>${esc(t('prio.' + tk.priority))}</dd>
             <dt>${esc(t('due'))}</dt><dd>${esc(fmt(tk.due_at))}</dd>
+            <dt>📅 ${esc(t('planned'))}</dt><dd>${tk.planned_at ? `<strong>${esc(fmt(tk.planned_at))}</strong>` : '—'}${manage && open ? ` <button class="btn sm" id="btn-plan">${esc(t('plan'))}</button>` : ''}</dd>
+            ${tk.device ? `<dt>🔧 ${esc(t('device'))}</dt><dd><a href="#/devices?open=${tk.device.id}">${esc(tk.device.type)}${tk.device.model ? ' · ' + esc(tk.device.model) : ''}</a>${tk.device.serial_number ? ` · S/N <strong>${esc(tk.device.serial_number)}</strong>` : ''}</dd>` : ''}
+            ${tk.checklist ? `<dt>☑ ${esc(t('checklist'))}</dt><dd>${esc(tk.checklist.name)} <span class="muted small">(${tk.checklist.items.length})</span></dd>` : ''}
+            ${tk.schedule ? `<dt>🔁 ${esc(t('schedule'))}</dt><dd>${esc(tk.schedule.title)} <span class="muted small">(${esc(t('everyN').replace('{n}', tk.schedule.interval_months))})</span></dd>` : ''}
             <dt>${esc(t('createdAt'))}</dt><dd>${esc(fmt(tk.created_at))} · ${esc(t('sources.' + tk.source))}</dd>
             ${tk.reporter ? `<dt>${esc(t('reporter'))}</dt><dd>${esc([tk.reporter.name, tk.reporter.phone, tk.reporter.email].filter(Boolean).join(' · ') || '—')}</dd>` : ''}
             ${tk.closed_at ? `<dt>${esc(t('closedAt'))}</dt><dd>${esc(fmt(tk.closed_at))}</dd>` : ''}
@@ -846,6 +897,9 @@ async function renderTicket(id) {
 
   el.querySelector('#btn-report')?.addEventListener('click', () => clientReport(id));
   el.querySelector('#btn-price')?.addEventListener('click', () => editPrice(tk));
+  el.querySelector('#btn-plan')?.addEventListener('click', async () => {
+    if (await planModal({ id: tk.id, number: tk.number, title: tk.title, project_id: tk.project?.id, technician_id: tk.technician?.id, planned_at: tk.planned_at })) renderTicket(tk.id);
+  });
 
   el.querySelectorAll('[data-useloc]').forEach((b) => {
     b.onclick = async () => {
@@ -960,18 +1014,37 @@ async function editTicket(tk) {
         <label class="f"><span>${esc(t('serviceType'))}</span><select name="service_type">${(prj?.service_types || ['servis']).map((s) => `<option value="${s}" ${s === tk.service_type ? 'selected' : ''}>${esc(t('stype.' + s))}</option>`).join('')}</select></label>
         <label class="f"><span>${esc(t('priority'))}</span><select name="priority">${['low', 'normal', 'high', 'urgent'].map((p) => `<option value="${p}" ${p === tk.priority ? 'selected' : ''}>${esc(t('prio.' + p))}</option>`).join('')}</select></label>
         <label class="f"><span>${esc(t('due'))}</span><input type="datetime-local" name="due_at" value="${esc(toLocalInput(tk.due_at))}"></label>
+        <label class="f"><span>🔧 ${esc(t('device'))}</span><select name="device_id"><option value="">${esc(t('noDevice'))}</option></select></label>
+        <label class="f"><span>☑ ${esc(t('checklist'))}</span><select name="checklist_template_id"><option value="">${esc(t('noChecklist'))}</option></select></label>
       </div>
       <div class="banner err" id="eerr" hidden></div>
       <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div>
     </form>`, (d, close) => {
-    locationPicker(d.querySelector('#eloc'), () => tk.project?.id, (l) => { loc = l; }, loc);
     const f = d.querySelector('#ef');
+    const fillDevices = async () => {
+      const sel = f.device_id;
+      if (!loc) { sel.innerHTML = `<option value="">${esc(t('noDevice'))}</option>`; return; }
+      try {
+        const r = await api('GET', `/devices?location_id=${loc.id}&status=all`);
+        sel.innerHTML = `<option value="">${esc(t('noDevice'))}</option>` + r.data.map((x) => `<option value="${x.id}" ${tk.device?.id === x.id ? 'selected' : ''}>${esc(x.type)}${x.model ? ' · ' + esc(x.model) : ''}${x.serial_number ? ' · ' + esc(x.serial_number) : ''}</option>`).join('');
+      } catch { /* bez práv k zařízením */ }
+    };
+    (async () => {
+      try {
+        const cls = (await api('GET', '/checklists')).data.filter((c) => c.project_id === tk.project?.id);
+        f.checklist_template_id.innerHTML = `<option value="">${esc(t('noChecklist'))}</option>` + cls.map((c) => `<option value="${c.id}" ${tk.checklist?.id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+      } catch { /* */ }
+    })();
+    fillDevices();
+    locationPicker(d.querySelector('#eloc'), () => tk.project?.id, (l) => { loc = l; fillDevices(); }, loc);
     f.onsubmit = async (e) => {
       e.preventDefault();
       try {
         await api('PATCH', `/tickets/${tk.id}`, {
           title: f.title.value.trim(), description: f.description.value.trim() || null,
           service_type: f.service_type.value, priority: f.priority.value, due_at: fromLocalInput(f.due_at.value),
+          device_id: f.device_id.value ? Number(f.device_id.value) : null,
+          checklist_template_id: f.checklist_template_id.value ? Number(f.checklist_template_id.value) : null,
           ...(loc ? { location_id: loc.id } : {}),
         });
         close(true);
@@ -1447,13 +1520,33 @@ async function openEmail(id) {
 
 async function renderSettings() {
   const el = shell('settings');
-  let ai, mbs, prj, tariffs;
+  let ai, mbs, prj, tariffs, allProjects, checklists;
   try {
-    [ai, mbs, prj, tariffs] = await Promise.all([api('GET', '/admin/ai'), api('GET', '/admin/mailboxes').then((r) => r.data), projects(), api('GET', '/tariffs').then((r) => r.data)]);
+    [ai, mbs, prj, tariffs, allProjects, checklists] = await Promise.all([api('GET', '/admin/ai'), api('GET', '/admin/mailboxes').then((r) => r.data), projects(),
+      api('GET', '/tariffs').then((r) => r.data), api('GET', '/admin/projects').then((r) => r.data), api('GET', '/checklists').then((r) => r.data)]);
   } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
 
   el.innerHTML = `
     <div class="page-head"><h1>⚙️ ${esc(t('navSettings'))}</h1></div>
+    <div class="card" style="max-width:860px">
+      <h2>🗂 ${esc(t('projects'))}<span class="sp"></span><button class="btn sm primary" id="pj-add">➕ ${esc(t('newProject'))}</button></h2>
+      <table class="tbl"><thead><tr><th>${esc(t('name'))}</th><th>${esc(t('serviceTypes'))}</th><th>SLA</th><th>${esc(t('protocolTpl'))}</th></tr></thead><tbody>
+        ${allProjects.map((x, i) => `<tr data-pj="${i}" style="cursor:pointer"><td><strong>${esc(x.name)}</strong> <span class="muted small">${esc(x.code)} · ${esc((x.countries || []).join(', '))}</span>${x.is_active ? '' : ' ' + chip('off', t('inactiveP'))}
+          ${x.end_customers.length ? `<div class="muted small">${x.end_customers.map((e) => esc(e.name)).join(' · ')}</div>` : ''}</td>
+          <td>${(x.service_types || []).map((s) => esc(t('stype.' + s))).join(', ')}</td>
+          <td class="small">${Object.keys(x.sla_hours || {}).length ? Object.entries(x.sla_hours).map(([k, v]) => `${esc(t('prio.' + k))} ${v} h`).join('<br>') : '—'}</td>
+          <td>${x.protocol_template === 'm4b' ? 'M4B' : 'Standard'}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+
+    <div class="card" style="max-width:860px">
+      <h2>☑ ${esc(t('checklists'))}<span class="sp"></span><button class="btn sm primary" id="cl-add">➕ ${esc(t('newChecklist'))}</button></h2>
+      ${checklists.length ? `<table class="tbl"><thead><tr><th>${esc(t('name'))}</th><th>${esc(t('project'))}</th><th>${esc(t('serviceType'))}</th><th class="num">#</th></tr></thead><tbody>
+        ${checklists.map((c, i) => `<tr data-cl="${i}" style="cursor:pointer"><td><strong>${esc(c.name)}</strong>${c.is_active ? '' : ' ' + chip('off', t('inactiveP'))}</td><td>${esc(c.project?.name || '')}</td>
+          <td>${esc(c.service_type ? t('stype.' + c.service_type) : t('allTypes'))}</td><td class="num">${c.items.length}</td></tr>`).join('')}
+      </tbody></table>` : '<p class="muted">—</p>'}
+    </div>
+
     <div class="card" style="max-width:860px">
       <h2>💰 ${esc(t('tariffs'))}<span class="sp"></span><button class="btn sm primary" id="tf-add">➕ ${esc(t('newTariff'))}</button></h2>
       ${tariffs.length ? `<table class="tbl"><thead><tr><th>${esc(t('project'))}</th><th>${esc(t('serviceType'))}</th><th class="num">${esc(t('tariffBase'))}</th><th class="num">${esc(t('tariffKm'))}</th><th>${esc(t('tariffNote'))}</th></tr></thead><tbody>
@@ -1503,6 +1596,10 @@ async function renderSettings() {
   });
   el.querySelector('#mb-add').onclick = () => mailboxForm(null, prj);
   el.querySelector('#tf-add').onclick = () => tariffForm(null, prj);
+  el.querySelector('#pj-add').onclick = () => projectForm(null);
+  el.querySelectorAll('[data-pj]').forEach((r) => { r.onclick = () => projectForm(allProjects[Number(r.dataset.pj)]); });
+  el.querySelector('#cl-add').onclick = () => checklistForm(null, prj);
+  el.querySelectorAll('[data-cl]').forEach((r) => { r.onclick = () => checklistForm(checklists[Number(r.dataset.cl)], prj); });
   el.querySelectorAll('[data-tf]').forEach((r) => { r.onclick = () => tariffForm(tariffs[Number(r.dataset.tf)], prj); });
   el.querySelectorAll('[data-mb]').forEach((d) => { d.onclick = () => mailboxForm(mbs[Number(d.dataset.mb)], prj); });
 }
@@ -1801,3 +1898,522 @@ function labelTables(root) {
   });
 }
 new MutationObserver(() => labelTables($root)).observe($root, { childList: true, subtree: true });
+
+// ================================================================ plánování (M4)
+
+/** Modal: technik + den/čas. tk = {id, number, title, project_id, technician_id, planned_at}; preset = {technician_id, date} */
+async function planModal(tk, preset = {}) {
+  const techs = await technicians(tk.project_id);
+  const techId = preset.technician_id ?? tk.technician_id;
+  let when = tk.planned_at ? toLocalInput(tk.planned_at) : '';
+  if (preset.date) when = preset.date + 'T' + (tk.planned_at ? toLocalInput(tk.planned_at).slice(11, 16) : '08:00');
+  return modal(`
+    <h3>📅 ${esc(t('plan'))} · ${esc(tk.number || '#' + tk.id)}</h3>
+    <p class="muted small" style="margin-top:-8px">${esc(tk.title || '')}${tk.location ? ' · ' + esc(tk.location) : ''}</p>
+    <form id="plf">
+      <div class="form-grid">
+        <label class="f"><span>${esc(t('technician'))}</span><select name="technician_id">${tk.technician_id ? '' : `<option value="">—</option>`}${techs.list.map((u) => `<option value="${u.id}" ${u.id === techId ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
+        <label class="f"><span>${esc(t('plannedAt'))}</span><input type="datetime-local" name="planned_at" value="${esc(when)}" required></label>
+      </div>
+      <div class="banner err" id="plerr" hidden></div>
+      <div class="modal-foot">
+        ${tk.planned_at ? `<button type="button" class="btn danger" id="pl-un">${esc(t('unplan'))}</button>` : ''}<span class="sp"></span>
+        <button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button>
+      </div>
+    </form>`, (d, close) => {
+    const f = d.querySelector('#plf');
+    const send = async (body) => {
+      try { await api('POST', `/tickets/${tk.id}/plan`, body); toast(t('saved')); close(true); } catch (ex) { const e = d.querySelector('#plerr'); e.textContent = errText(ex); e.hidden = false; }
+    };
+    d.querySelector('#pl-un')?.addEventListener('click', () => send({ planned_at: null }));
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      send({ technician_id: f.technician_id.value ? Number(f.technician_id.value) : null, planned_at: fromLocalInput(f.planned_at.value) });
+    };
+  });
+}
+
+function weekStart(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const wd = (x.getDay() + 6) % 7; // pondělí = 0
+  x.setDate(x.getDate() - wd);
+  return x;
+}
+
+async function renderPlanning(q) {
+  const el = shell('planning');
+  const tab = q.get('tab') || 'cal';
+  const setQ = (ch) => { const n = new URLSearchParams(q); Object.entries(ch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); location.hash = '#/planning?' + n; };
+  const prj = (await projects()).filter((p) => isAdmin() || managesProject(p.id) || has('ekonom', 'spolecnik'));
+  const project = q.get('project') || '';
+
+  const head = `
+    <div class="page-head"><h1>📅 ${esc(t('navPlanning'))}</h1>
+      ${tab === 'sch' ? `<button class="btn primary" id="sch-add">➕ ${esc(t('newSchedule'))}</button>` : `<button class="btn" id="abs-add">${esc(t('addAbsence'))}</button>`}
+    </div>
+    <div class="tabs">
+      <button class="tab ${tab === 'cal' ? 'on' : ''}" data-tab="cal">🗓 ${esc(t('calendar'))}</button>
+      <button class="tab ${tab === 'sch' ? 'on' : ''}" data-tab="sch">🔁 ${esc(t('schedules'))}</button>
+    </div>
+    <div class="filters"><select id="f-project"><option value="">${esc(t('allProjects'))}</option>${prj.map((p) => `<option value="${p.id}" ${String(p.id) === project ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>`;
+
+  if (tab === 'sch') return renderSchedules(el, head, setQ, project, prj);
+
+  const start = q.get('w') ? weekStart(new Date(q.get('w') + 'T12:00')) : weekStart(new Date());
+  const days = [...Array(7)].map((_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); return d; });
+  const from = ymdLocal(days[0]);
+  const to = ymdLocal(days[6]);
+
+  let r;
+  try { r = await api('GET', `/planning?from=${from}&to=${to}${project ? '&project_id=' + project : ''}`); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+
+  const todayYmd = ymdLocal(new Date());
+  const dayLabel = (d) => d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'numeric' });
+  const hm = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+  const all = [...r.planned, ...r.unplanned];
+  const byId = new Map(all.map((x) => [x.id, x]));
+  const card = (x, withTime) => `<div class="pl-item st-${esc(x.status)} prio-${esc(x.priority)}" draggable="true" data-tk="${x.id}" title="${esc(x.title)}">
+      ${withTime && x.planned_at ? `<span class="pl-time">${esc(hm(x.planned_at))}</span>` : ''}<strong>${esc((x.location || x.title).split(' · ')[0])}</strong>
+      <div class="pl-loc">${x.city ? esc(x.city) + ' · ' : ''}${esc(x.title)}</div>
+      <div class="pl-due">${esc((x.number || '').replace(/^PAP-\d{4}-0*/, '#'))}${x.external_ref ? ' · ' + esc(x.external_ref) : ''}</div>
+      ${!withTime && x.due_at ? `<div class="pl-due ${new Date(x.due_at) < new Date() ? 'overdue' : ''}">⏱ ${esc(fmt(x.due_at))}</div>` : ''}
+      ${!withTime && x.technician ? `<div class="pl-due">👷 ${esc(x.technician)}</div>` : ''}
+    </div>`;
+
+  const absenceOn = (uid, ymd) => r.absences.find((a) => a.user_id === uid && a.from <= ymd && a.to >= ymd);
+  const rows = r.technicians.map((u) => `<tr><td class="pl-tech"><strong>${esc(u.name)}</strong></td>${days.map((d) => {
+    const ymd = ymdLocal(d);
+    const items = r.planned.filter((x) => x.technician_id === u.id && ymdLocal(new Date(x.planned_at)) === ymd);
+    const ab = absenceOn(u.id, ymd);
+    return `<td class="pl-cell ${ymd === todayYmd ? 'today' : ''} ${ab ? 'absent' : ''}" data-cell="${u.id}|${ymd}">${ab ? `<div class="pl-abs" data-abs="${ab.id}">🏖 ${esc(ab.note || t('absence'))}</div>` : ''}${items.map((x) => card(x, true)).join('')}</td>`;
+  }).join('')}</tr>`).join('');
+  // naplánované bez technika (nebo u technika mimo seznam)
+  const orphan = r.planned.filter((x) => !r.technicians.some((u) => u.id === x.technician_id));
+
+  el.innerHTML = head + `
+    <div class="card pl-nav">
+      <button class="btn sm" id="w-prev">◀</button>
+      <button class="btn sm" id="w-today">${esc(t('today'))}</button>
+      <button class="btn sm" id="w-next">▶</button>
+      <strong style="margin-left:8px">${esc(days[0].toLocaleDateString(locale()))} – ${esc(days[6].toLocaleDateString(locale()))}</strong>
+      <span class="sp"></span><span class="muted small hide-mobile">${esc(t('planHint'))}</span>
+    </div>
+    <div class="pl-wrap">
+      <div class="card pl-unplanned" data-drop-unplan>
+        <h2>${esc(t('unplanned'))} <span class="chip draft">${r.unplanned.length}</span></h2>
+        ${r.unplanned.length ? r.unplanned.map((x) => card(x, false)).join('') : `<p class="muted">${esc(t('noUnplanned'))}</p>`}
+        ${orphan.length ? `<h2 style="margin-top:14px">${esc(t('planned'))} – ${esc(t('technician'))} ?</h2>${orphan.map((x) => card(x, true)).join('')}` : ''}
+      </div>
+      <div class="card pl-grid-card">
+        <table class="pl-grid"><thead><tr><th>${esc(t('technician'))}</th>${days.map((d) => `<th class="${ymdLocal(d) === todayYmd ? 'today' : ''}">${esc(dayLabel(d))}</th>`).join('')}</tr></thead>
+        <tbody>${rows || `<tr><td colspan="8" class="muted">—</td></tr>`}</tbody></table>
+      </div>
+    </div>`;
+
+  const shiftWeek = (n) => { const d = new Date(start); d.setDate(d.getDate() + n * 7); setQ({ w: ymdLocal(d) }); };
+  el.querySelector('#w-prev').onclick = () => shiftWeek(-1);
+  el.querySelector('#w-next').onclick = () => shiftWeek(1);
+  el.querySelector('#w-today').onclick = () => setQ({ w: '' });
+  el.querySelector('#f-project').onchange = (e) => setQ({ project: e.target.value });
+  el.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => setQ({ tab: b.dataset.tab === 'cal' ? '' : b.dataset.tab }); });
+  el.querySelector('#abs-add').onclick = () => absenceModal(r.technicians).then((ok) => ok && route());
+
+  const reload = () => route();
+  // klik na zakázku = plán; dvojklik = otevřít detail
+  el.querySelectorAll('[data-tk]').forEach((c) => {
+    c.onclick = async (e) => { e.stopPropagation(); const x = byId.get(Number(c.dataset.tk)); if (await planModal(x)) reload(); };
+    c.ondblclick = (e) => { e.stopPropagation(); location.hash = '#/t/' + c.dataset.tk; };
+    c.ondragstart = (e) => { e.dataTransfer.setData('text/plain', c.dataset.tk); e.dataTransfer.effectAllowed = 'move'; };
+  });
+  el.querySelectorAll('[data-abs]').forEach((a) => {
+    a.onclick = async (e) => {
+      e.stopPropagation();
+      if (!(await confirmModal(t('delete') + ' – ' + t('absence') + '?'))) return;
+      try { await api('DELETE', `/absences/${a.dataset.abs}`); reload(); } catch (ex) { toast(errText(ex), true); }
+    };
+  });
+  el.querySelectorAll('[data-cell]').forEach((cell) => {
+    const [uid, ymd] = cell.dataset.cell.split('|');
+    cell.onclick = async () => {
+      if (!r.unplanned.length) return;
+      const id = await modal(`<h3>${esc(t('pickTicket'))} · ${esc(r.technicians.find((u) => String(u.id) === uid)?.name || '')} · ${esc(new Date(ymd + 'T12:00').toLocaleDateString(locale()))}</h3>
+        <div class="pl-pick">${r.unplanned.map((x) => card(x, false)).join('')}</div>
+        <div class="modal-foot"><button class="btn" data-close>${esc(t('cancel'))}</button></div>`,
+      (d, close) => { d.querySelectorAll('[data-tk]').forEach((c) => { c.draggable = false; c.onclick = () => close(Number(c.dataset.tk)); }); });
+      if (id && await planModal(byId.get(id), { technician_id: Number(uid), date: ymd })) reload();
+    };
+    cell.ondragover = (e) => { e.preventDefault(); cell.classList.add('drop'); };
+    cell.ondragleave = () => cell.classList.remove('drop');
+    cell.ondrop = async (e) => {
+      e.preventDefault(); cell.classList.remove('drop');
+      const x = byId.get(Number(e.dataTransfer.getData('text/plain')));
+      if (!x) return;
+      const time = x.planned_at ? toLocalInput(x.planned_at).slice(11, 16) : '08:00';
+      try {
+        await api('POST', `/tickets/${x.id}/plan`, { technician_id: Number(uid), planned_at: fromLocalInput(ymd + 'T' + time) });
+        toast(t('saved')); reload();
+      } catch (ex) { toast(errText(ex), true); }
+    };
+  });
+  const un = el.querySelector('[data-drop-unplan]');
+  un.ondragover = (e) => e.preventDefault();
+  un.ondrop = async (e) => {
+    e.preventDefault();
+    const x = byId.get(Number(e.dataTransfer.getData('text/plain')));
+    if (!x || !x.planned_at) return;
+    try { await api('POST', `/tickets/${x.id}/plan`, { planned_at: null }); reload(); } catch (ex) { toast(errText(ex), true); }
+  };
+}
+
+async function absenceModal(techs) {
+  const today = ymdLocal(new Date());
+  return modal(`
+    <h3>🏖 ${esc(t('absence'))}</h3>
+    <form id="abf"><div class="form-grid">
+      <label class="f full"><span>${esc(t('technician'))}</span><select name="user_id">${techs.map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('dateFrom'))}</span><input type="date" name="date_from" value="${today}" required></label>
+      <label class="f"><span>${esc(t('dateTo'))}</span><input type="date" name="date_to" value="${today}" required></label>
+      <label class="f full"><span>${esc(t('absenceNote'))}</span><input type="text" name="note" maxlength="255"></label>
+    </div>
+    <div class="banner err" id="aberr" hidden></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#abf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await api('POST', '/absences', { user_id: Number(f.user_id.value), date_from: f.date_from.value, date_to: f.date_to.value, note: f.note.value.trim() || null });
+        toast(t('saved')); close(true);
+      } catch (ex) { const er = d.querySelector('#aberr'); er.textContent = errText(ex); er.hidden = false; }
+    };
+  });
+}
+
+async function renderSchedules(el, head, setQ, project, prj) {
+  let list;
+  try { list = (await api('GET', '/schedules' + (project ? '?project_id=' + project : ''))).data; } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+  el.innerHTML = head + `
+    <div class="table-wrap">${list.length ? `<table><thead><tr>
+      <th>${esc(t('schedule'))}</th><th>${esc(t('location'))}</th><th>${esc(t('interval'))}</th><th>${esc(t('nextDue'))}</th><th>${esc(t('technician'))}</th><th>${esc(t('checklist'))}</th><th>${esc(t('active'))}</th></tr></thead><tbody>
+      ${list.map((s, i) => `<tr data-s="${i}">
+        <td><strong>${esc(s.title)}</strong><div class="muted small">${esc(s.project?.name || '')} · ${esc(t('stype.' + s.service_type))}</div></td>
+        <td>${s.location ? `${esc(s.location.code)} · ${esc(s.location.name)}<div class="muted small">${esc(s.location.city || '')}${s.device ? ' · 🔧 ' + esc(s.device.type) : ''}</div>` : '—'}</td>
+        <td>${esc(t('everyN').replace('{n}', s.interval_months))}</td>
+        <td><strong>${esc(fmt(s.next_due_on, false))}</strong><div class="muted small">−${s.lead_days} d</div></td>
+        <td>${esc(s.technician?.name || '—')}</td>
+        <td>${esc(s.checklist?.name || '—')}</td>
+        <td>${s.is_active ? '✓' : chip('off', t('inactive'))}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="card empty">—</div>`}</div>`;
+  el.querySelector('#f-project').onchange = (e) => setQ({ project: e.target.value });
+  el.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => setQ({ tab: b.dataset.tab === 'cal' ? '' : b.dataset.tab }); });
+  el.querySelector('#sch-add').onclick = () => scheduleForm(null, prj, project);
+  el.querySelectorAll('[data-s]').forEach((r) => { r.onclick = () => scheduleForm(list[Number(r.dataset.s)], prj, project); });
+}
+
+async function scheduleForm(s, prj, defaultProject) {
+  let loc = s?.location || null;
+  let projectId = s?.project?.id || Number(defaultProject) || prj[0]?.id;
+  const nextDefault = ymdLocal(new Date(Date.now() + 30 * 864e5));
+  let checklists = [];
+  try { checklists = (await api('GET', '/checklists')).data; } catch { /* */ }
+  await modal(`
+    <h3>🔁 ${esc(s ? s.title : t('newSchedule'))}</h3>
+    <form id="sf"><div class="form-grid">
+      <label class="f"><span class="req">${esc(t('project'))}</span><select name="project_id" ${s ? 'disabled' : ''}>${prj.map((p) => `<option value="${p.id}" ${p.id === projectId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('serviceType'))}</span><select name="service_type">${SERVICE_TYPES.map((x) => `<option value="${x}" ${(s?.service_type || 'profilaxe') === x ? 'selected' : ''}>${esc(t('stype.' + x))}</option>`).join('')}</select></label>
+      <div class="f full"><span style="display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:4px" class="req">${esc(t('location'))}</span><div id="sloc"></div></div>
+      <label class="f full"><span class="req">${esc(t('reqTitle'))}</span><input type="text" name="title" required value="${esc(s?.title || '')}" placeholder="např. Profilaxe Z-BOX"></label>
+      <label class="f"><span>🔧 ${esc(t('device'))}</span><select name="device_id"><option value="">${esc(t('noDevice'))}</option></select></label>
+      <label class="f"><span>☑ ${esc(t('checklist'))}</span><select name="checklist_template_id"></select></label>
+      <label class="f"><span class="req">${esc(t('interval'))}</span><input type="number" name="interval_months" min="1" max="60" required value="${s?.interval_months ?? 3}"></label>
+      <label class="f"><span class="req">${esc(t('nextDue'))}</span><input type="date" name="next_due_on" required value="${esc(s?.next_due_on || nextDefault)}"></label>
+      <label class="f"><span>${esc(t('leadDays'))}</span><input type="number" name="lead_days" min="0" max="120" value="${s?.lead_days ?? 14}"></label>
+      <label class="f"><span>${esc(t('autoAssign'))}</span><select name="technician_id"><option value="">—</option></select></label>
+      <label class="f"><span>${esc(t('active'))}</span><select name="is_active"><option value="1">${esc(t('yes'))}</option><option value="0" ${s && !s.is_active ? 'selected' : ''}>${esc(t('no'))}</option></select></label>
+    </div>
+    <div class="banner err" id="serr" hidden></div>
+    <div class="modal-foot">
+      ${s ? `<button type="button" class="btn danger" id="s-del">${esc(t('delete'))}</button><button type="button" class="btn" id="s-run">▶ ${esc(t('runNow'))}</button>` : ''}<span class="sp"></span>
+      <button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button>
+    </div></form>`, (d, close) => {
+    const f = d.querySelector('#sf');
+    const err = (ex) => { const e = d.querySelector('#serr'); e.textContent = errText(ex); e.hidden = false; };
+    const fillProjectBound = async () => {
+      f.checklist_template_id.innerHTML = `<option value="">${esc(t('noChecklist'))}</option>` + checklists.filter((c) => c.project_id === projectId)
+        .map((c) => `<option value="${c.id}" ${s?.checklist?.id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+      const techs = await technicians(projectId);
+      f.technician_id.innerHTML = `<option value="">—</option>` + techs.list.map((u) => `<option value="${u.id}" ${s?.technician?.id === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('');
+    };
+    const fillDevices = async () => {
+      if (!loc) { f.device_id.innerHTML = `<option value="">${esc(t('noDevice'))}</option>`; return; }
+      const r = await api('GET', `/devices?location_id=${loc.id}`);
+      f.device_id.innerHTML = `<option value="">${esc(t('noDevice'))}</option>` + r.data.map((x) => `<option value="${x.id}" ${s?.device?.id === x.id ? 'selected' : ''}>${esc(x.type)}${x.serial_number ? ' · ' + esc(x.serial_number) : ''}</option>`).join('');
+    };
+    const picker = () => locationPicker(d.querySelector('#sloc'), () => projectId, (l) => { loc = l; fillDevices(); }, loc);
+    f.project_id.onchange = () => { projectId = Number(f.project_id.value); loc = null; picker(); fillProjectBound(); fillDevices(); };
+    picker(); fillProjectBound(); fillDevices();
+
+    d.querySelector('#s-del')?.addEventListener('click', async () => {
+      if (!(await confirmModal(t('delete') + '?'))) { route(); return; }
+      try { await api('DELETE', `/schedules/${s.id}`); toast(t('saved')); route(); } catch (ex) { toast(errText(ex), true); }
+    });
+    d.querySelector('#s-run')?.addEventListener('click', async () => {
+      try { const r = await api('POST', `/schedules/${s.id}/run`); close(true); toast(t('created') + ': ' + r.data.number); location.hash = '#/t/' + r.data.ticket_id; } catch (ex) { err(ex); }
+    });
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!loc) { err({ message: t('location') + '?' }); return; }
+      const body = {
+        location_id: loc.id, title: f.title.value.trim(), service_type: f.service_type.value,
+        device_id: f.device_id.value ? Number(f.device_id.value) : null,
+        checklist_template_id: f.checklist_template_id.value ? Number(f.checklist_template_id.value) : null,
+        technician_id: f.technician_id.value ? Number(f.technician_id.value) : null,
+        interval_months: Number(f.interval_months.value), next_due_on: f.next_due_on.value,
+        lead_days: Number(f.lead_days.value || 0), is_active: f.is_active.value === '1',
+      };
+      try {
+        if (s) await api('PATCH', `/schedules/${s.id}`, body); else await api('POST', '/schedules', body);
+        close(true); toast(t('saved')); route();
+      } catch (ex) { err(ex); }
+    };
+  });
+}
+
+// ================================================================ zařízení (M4)
+
+async function renderDevices(q) {
+  const el = shell('devices');
+  const setQ = (ch) => { const n = new URLSearchParams(q); Object.entries(ch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); n.delete('open'); location.hash = '#/devices?' + n; };
+  const project = q.get('project') || '';
+  const status = q.get('status') || 'active';
+  const search = q.get('q') || '';
+  const prj = await projects();
+  const canEdit = has('admin', 'dispecer');
+
+  const params = new URLSearchParams({ status, per_page: '300' });
+  if (project) params.set('project_id', project);
+  if (search) params.set('q', search);
+  let r;
+  try { r = await api('GET', '/devices?' + params); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+
+  el.innerHTML = `
+    <div class="page-head"><h1>🔧 ${esc(t('devices'))}</h1>
+      <button class="btn" id="d-csv">${esc(t('exportCsv'))}</button>
+      ${canEdit ? `<button class="btn primary" id="d-add">➕ ${esc(t('newDevice'))}</button>` : ''}
+    </div>
+    <div class="filters">
+      <select id="f-project"><option value="">${esc(t('allProjects'))}</option>${prj.map((p) => `<option value="${p.id}" ${String(p.id) === project ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+      <select id="f-status">${['active', 'removed', 'all'].map((x) => `<option value="${x}" ${x === status ? 'selected' : ''}>${esc(t('devStatus.' + x))}</option>`).join('')}</select>
+      <input type="search" id="f-q" placeholder="${esc(t('serial'))}, ${esc(t('location'))}…" value="${esc(search)}">
+    </div>
+    <div class="table-wrap">${r.data.length ? `<table><thead><tr>
+      <th>${esc(t('serial'))}</th><th>${esc(t('deviceType'))}</th><th>${esc(t('location'))}</th><th>${esc(t('installedAt'))}</th><th>${esc(t('handoverAt'))}</th><th>${esc(t('project'))}</th></tr></thead><tbody>
+      ${r.data.map((x) => `<tr data-d="${x.id}">
+        <td><strong>${esc(x.serial_number || '—')}</strong>${x.status === 'removed' ? ' ' + chip('off', t('devStatus.removed')) : ''}</td>
+        <td>${esc(x.type)}${x.model ? `<div class="muted small">${esc(x.model)}</div>` : ''}</td>
+        <td>${x.location ? `${esc(x.location.code)} · ${esc(x.location.name)}<div class="muted small">${esc(x.location.city || '')}</div>` : '—'}</td>
+        <td>${esc(fmt(x.installed_at, false))}</td>
+        <td>${x.handover_at ? esc(fmt(x.handover_at, false)) + (x.handover_to ? `<div class="muted small">${esc(x.handover_to)}</div>` : '') : '—'}</td>
+        <td>${esc(x.project?.name || '')}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="card empty">${esc(t('noDevices'))}</div>`}</div>`;
+
+  el.querySelector('#f-project').onchange = (e) => setQ({ project: e.target.value });
+  el.querySelector('#f-status').onchange = (e) => setQ({ status: e.target.value });
+  el.querySelector('#f-q').addEventListener('input', debounce((e) => setQ({ q: e.target.value.trim() }), 450));
+  if (search) { const i = el.querySelector('#f-q'); i.focus(); i.setSelectionRange(search.length, search.length); }
+  el.querySelector('#d-add')?.addEventListener('click', () => deviceForm(null, prj, project));
+  el.querySelectorAll('[data-d]').forEach((tr) => { tr.onclick = () => deviceModal(Number(tr.dataset.d), prj); });
+  el.querySelector('#d-csv').onclick = async () => {
+    try {
+      const res = await api('GET', '/devices/export?' + params, undefined, { raw: true });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(await res.blob()); a.download = `zarizeni_${ymdLocal(new Date())}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { toast(errText(e), true); }
+  };
+  if (q.get('open')) deviceModal(Number(q.get('open')), prj);
+}
+
+async function deviceModal(id, prj) {
+  let x;
+  try { x = (await api('GET', `/devices/${id}`)).data; } catch (e) { toast(errText(e), true); return; }
+  const canEdit = isAdmin() || managesProject(x.project_id);
+  const res = await modal(`
+    <h3>🔧 ${esc(x.type)}${x.model ? ' · ' + esc(x.model) : ''}</h3>
+    <dl class="kv">
+      <dt>${esc(t('serial'))}</dt><dd><strong>${esc(x.serial_number || '—')}</strong></dd>
+      <dt>${esc(t('location'))}</dt><dd>${x.location ? `${esc(x.location.code)} · ${esc(x.location.name)}${x.location.city ? ', ' + esc(x.location.city) : ''}` : '—'}</dd>
+      <dt>${esc(t('project'))}</dt><dd>${esc(x.project?.name || '')}</dd>
+      <dt>${esc(t('installedAt'))}</dt><dd>${esc(fmt(x.installed_at, false))}</dd>
+      <dt>${esc(t('handoverAt'))}</dt><dd>${x.handover_at ? esc(fmt(x.handover_at, false)) + (x.handover_to ? ' · ' + esc(x.handover_to) : '') : '—'}</dd>
+      ${x.note ? `<dt>${esc(t('tariffNote'))}</dt><dd class="desc">${esc(x.note)}</dd>` : ''}
+    </dl>
+    <h3 style="margin:16px 0 8px;font-size:15px">${esc(t('history'))}</h3>
+    <div class="history">${x.events.map((e) => `<div><strong>${esc(t('evt.' + e.type))}</strong> · ${esc(fmt(e.happened_at))}${e.user ? ' · ' + esc(e.user) : ''}
+      ${e.ticket ? ` · <a href="#/t/${e.ticket.id}">${esc(e.ticket.number)}</a>` : ''}
+      ${e.old_serial || e.new_serial ? `<div class="small">S/N ${esc(e.old_serial || '—')} → <strong>${esc(e.new_serial || '—')}</strong></div>` : ''}
+      ${e.note ? `<div class="muted small desc">${esc(e.note)}</div>` : ''}</div>`).join('') || '<p class="muted">—</p>'}</div>
+    ${x.tickets.length ? `<h3 style="margin:16px 0 8px;font-size:15px">${esc(t('navTickets'))}</h3>
+      <div class="history">${x.tickets.map((tk) => `<div><a href="#/t/${tk.id}">${esc(tk.number)}</a> · ${esc(tk.title)} ${chip(tk.status, t('status.' + tk.status))} <span class="muted small">${esc(fmt(tk.created_at, false))}${tk.technician ? ' · ' + esc(tk.technician) : ''}</span></div>`).join('')}</div>` : ''}
+    <div class="modal-foot">
+      ${canEdit ? `<button class="btn" id="dv-evt">${esc(t('addEvent'))}</button><button class="btn" id="dv-edit">✎ ${esc(t('edit'))}</button>` : ''}<span class="sp"></span>
+      <button class="btn" data-close>${esc(t('cancel'))}</button>
+    </div>`, (d, close) => {
+    d.querySelector('#dv-edit')?.addEventListener('click', () => close('edit'));
+    d.querySelector('#dv-evt')?.addEventListener('click', () => close('evt'));
+    d.querySelectorAll('a[href^="#/t/"]').forEach((a) => a.addEventListener('click', () => close()));
+  });
+  if (res === 'edit') { if (await deviceForm(x, prj)) deviceModal(id, prj); }
+  if (res === 'evt') { if (await deviceEventForm(x)) deviceModal(id, prj); }
+}
+
+async function deviceEventForm(x) {
+  return modal(`
+    <h3>${esc(t('addEvent'))} · ${esc(x.type)} ${esc(x.serial_number || '')}</h3>
+    <form id="evf"><div class="form-grid">
+      <label class="f"><span>Typ</span><select name="type">${['note', 'service', 'replace', 'handover', 'install', 'remove'].map((k) => `<option value="${k}">${esc(t('evt.' + k))}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('plannedAt'))}</span><input type="datetime-local" name="happened_at" value="${esc(toLocalInput(new Date().toISOString()))}"></label>
+      <label class="f"><span>${esc(t('oldSerial'))}</span><input type="text" name="old_serial" value="${esc(x.serial_number || '')}"></label>
+      <label class="f"><span>${esc(t('newSerial'))}</span><input type="text" name="new_serial"></label>
+      <label class="f full"><span>${esc(t('tariffNote'))}</span><textarea name="note"></textarea></label>
+    </div>
+    <div class="banner err" id="everr" hidden></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#evf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const isSn = f.type.value === 'replace';
+      try {
+        await api('POST', `/devices/${x.id}/events`, {
+          type: f.type.value, note: f.note.value.trim() || null, happened_at: fromLocalInput(f.happened_at.value),
+          old_serial: isSn ? f.old_serial.value.trim() || null : null, new_serial: isSn ? f.new_serial.value.trim() || null : null,
+        });
+        toast(t('saved')); close(true);
+      } catch (ex) { const er = d.querySelector('#everr'); er.textContent = errText(ex); er.hidden = false; }
+    };
+  });
+}
+
+async function deviceForm(x, prj, defaultProject) {
+  const editable = prj.filter((p) => managesProject(p.id));
+  let projectId = x?.project_id || Number(defaultProject) || editable[0]?.id;
+  let loc = x?.location || null;
+  const types = ['Z-BOX', 'Paczkomat', 'Kiosek', 'Pokladna', 'Terminál', 'Tiskárna', 'Displej', 'Router'];
+  return modal(`
+    <h3>🔧 ${esc(x ? t('edit') : t('newDevice'))}</h3>
+    <form id="dvf"><div class="form-grid">
+      <label class="f"><span class="req">${esc(t('project'))}</span><select name="project_id" ${x ? 'disabled' : ''}>${editable.map((p) => `<option value="${p.id}" ${p.id === projectId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="f"><span class="req">${esc(t('deviceType'))}</span><input type="text" name="type" list="dv-types" required value="${esc(x?.type || '')}"><datalist id="dv-types">${types.map((v) => `<option value="${v}">`).join('')}</datalist></label>
+      <div class="f full"><span style="display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:4px">${esc(t('location'))}</span><div id="dvloc"></div></div>
+      <label class="f"><span>${esc(t('model'))}</span><input type="text" name="model" value="${esc(x?.model || '')}"></label>
+      <label class="f"><span>${esc(t('serial'))}</span><input type="text" name="serial_number" value="${esc(x?.serial_number || '')}"></label>
+      <label class="f"><span>${esc(t('installedAt'))}</span><input type="date" name="installed_at" value="${esc(x?.installed_at || '')}"></label>
+      <label class="f"><span>${esc(t('handoverAt'))}</span><input type="date" name="handover_at" value="${esc(x?.handover_at || '')}"></label>
+      <label class="f"><span>${esc(t('handoverTo'))}</span><input type="text" name="handover_to" value="${esc(x?.handover_to || '')}"></label>
+      ${x ? `<label class="f"><span>Stav</span><select name="status">${['active', 'removed'].map((k) => `<option value="${k}" ${x.status === k ? 'selected' : ''}>${esc(t('devStatus.' + k))}</option>`).join('')}</select></label>` : ''}
+      <label class="f full"><span>${esc(t('tariffNote'))}</span><textarea name="note">${esc(x?.note || '')}</textarea></label>
+    </div>
+    <div class="banner err" id="dverr" hidden></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#dvf');
+    const picker = () => locationPicker(d.querySelector('#dvloc'), () => projectId, (l) => { loc = l; }, loc);
+    f.project_id.onchange = () => { projectId = Number(f.project_id.value); loc = null; picker(); };
+    picker();
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const body = {
+        location_id: loc ? loc.id : null, type: f.type.value.trim(), model: f.model.value.trim() || null, serial_number: f.serial_number.value.trim() || null,
+        installed_at: f.installed_at.value || null, handover_at: f.handover_at.value || null, handover_to: f.handover_to.value.trim() || null, note: f.note.value.trim() || null,
+        ...(x ? { status: f.status.value } : { project_id: projectId }),
+      };
+      try {
+        if (x) await api('PATCH', `/devices/${x.id}`, body); else await api('POST', '/devices', body);
+        toast(t('saved')); close(true);
+        if (!x) route();
+      } catch (ex) { const er = d.querySelector('#dverr'); er.textContent = errText(ex); er.hidden = false; }
+    };
+  });
+}
+
+// ================================================================ nastavení: projekty a kontrolní seznamy (M4)
+
+async function projectForm(p) {
+  const slaKeys = ['urgent', 'high', 'normal', 'low'];
+  const ec = (p?.end_customers || []).map((e) => `${e.code};${e.name}`).join('\n');
+  await modal(`
+    <h3>🗂 ${esc(p ? p.name : t('newProject'))}</h3>
+    <form id="pjf"><div class="form-grid">
+      <label class="f"><span class="req">Kód</span><input type="text" name="code" required pattern="[A-Za-z0-9_-]+" value="${esc(p?.code || '')}" style="text-transform:uppercase"></label>
+      <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(p?.name || '')}"></label>
+      <div class="f full"><span style="display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:4px">${esc(t('serviceTypes'))}</span>
+        <div class="checks">${SERVICE_TYPES.map((x) => `<label><input type="checkbox" name="st" value="${x}" ${(p?.service_types || ['servis']).includes(x) ? 'checked' : ''}> ${esc(t('stype.' + x))}</label>`).join('')}</div></div>
+      <label class="f"><span>${esc(t('countries'))}</span><input type="text" name="countries" value="${esc((p?.countries || ['CZ']).join(', '))}"></label>
+      <label class="f"><span>${esc(t('protocolTpl'))}</span><select name="protocol_template"><option value="standard">Standard (CZ/PL)</option><option value="m4b" ${p?.protocol_template === 'm4b' ? 'selected' : ''}>M4B – Wykonanych prac</option></select></label>
+      <div class="f full"><span style="display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:4px">${esc(t('sla'))}</span>
+        <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">${slaKeys.map((k) => `<label class="f" style="margin:0"><span>${esc(t('prio.' + k))}</span><input type="number" min="1" name="sla_${k}" value="${esc(p?.sla_hours?.[k] ?? '')}" placeholder="—"></label>`).join('')}</div></div>
+      <label class="f full"><span>${esc(t('endCustomers'))}</span><textarea name="ec" placeholder="AMREST;KFC · SBX · BK AmRest">${esc(ec)}</textarea></label>
+      <label class="f"><span>${esc(t('active'))}</span><select name="is_active"><option value="1">${esc(t('yes'))}</option><option value="0" ${p && !p.is_active ? 'selected' : ''}>${esc(t('no'))}</option></select></label>
+    </div>
+    <div class="banner err" id="pjerr" hidden></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#pjf');
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const sla = {};
+      slaKeys.forEach((k) => { const v = f['sla_' + k].value; if (v) sla[k] = Number(v); });
+      const existing = new Map((p?.end_customers || []).map((x) => [x.code, x.id]));
+      const body = {
+        code: f.code.value.trim().toUpperCase(), name: f.name.value.trim(),
+        service_types: [...f.querySelectorAll('[name=st]:checked')].map((c) => c.value),
+        countries: f.countries.value.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean),
+        protocol_template: f.protocol_template.value, sla_hours: Object.keys(sla).length ? sla : null, is_active: f.is_active.value === '1',
+        end_customers: f.ec.value.split('\n').map((l) => l.split(';').map((x) => x.trim())).filter(([c, n]) => c && n)
+          .map(([c, n]) => ({ id: existing.get(c.toUpperCase()) || null, code: c.toUpperCase(), name: n })),
+      };
+      try {
+        if (p) await api('PATCH', `/admin/projects/${p.id}`, body); else await api('POST', '/admin/projects', body);
+        state.projects = null; close(true); toast(t('saved')); renderSettings();
+      } catch (ex) { const er = d.querySelector('#pjerr'); er.textContent = errText(ex); er.hidden = false; }
+    };
+  });
+}
+
+async function checklistForm(c, prj) {
+  const lines = (c?.items || []).map((i) => (i.required ? '* ' : '') + i.text).join('\n');
+  await modal(`
+    <h3>☑ ${esc(c ? c.name : t('newChecklist'))}</h3>
+    <form id="clf"><div class="form-grid">
+      <label class="f"><span class="req">${esc(t('project'))}</span><select name="project_id" ${c ? 'disabled' : ''}>${prj.map((p) => `<option value="${p.id}" ${c?.project_id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('serviceType'))}</span><select name="service_type"><option value="">${esc(t('allTypes'))}</option>${SERVICE_TYPES.map((x) => `<option value="${x}" ${c?.service_type === x ? 'selected' : ''}>${esc(t('stype.' + x))}</option>`).join('')}</select></label>
+      <label class="f full"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(c?.name || '')}"></label>
+      <label class="f full"><span class="req">${esc(t('checklistItems'))}</span><textarea name="items" rows="10" required placeholder="* Kontrola napájení&#10;* Test dveří schránek&#10;Čištění displeje">${esc(lines)}</textarea></label>
+      <label class="f"><span>${esc(t('active'))}</span><select name="is_active"><option value="1">${esc(t('yes'))}</option><option value="0" ${c && !c.is_active ? 'selected' : ''}>${esc(t('no'))}</option></select></label>
+    </div>
+    <div class="banner err" id="clerr" hidden></div>
+    <div class="modal-foot">${c ? `<button type="button" class="btn danger" id="cl-del">${esc(t('delete'))}</button>` : ''}<span class="sp"></span>
+      <button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#clf');
+    d.querySelector('#cl-del')?.addEventListener('click', async () => {
+      if (!(await confirmModal(t('delete') + '?'))) { renderSettings(); return; }
+      try { await api('DELETE', `/checklists/${c.id}`); toast(t('saved')); renderSettings(); } catch (ex) { toast(errText(ex), true); }
+    });
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      // zachovat id položek se stejným textem (vyplněné seznamy zůstanou spárované)
+      const old = new Map((c?.items || []).map((i) => [i.text, i.id]));
+      const items = f.items.value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+        const required = l.startsWith('*');
+        const text = l.replace(/^\*\s*/, '');
+        return { id: old.get(text) || null, text, required };
+      });
+      const body = { name: f.name.value.trim(), service_type: f.service_type.value || null, items, is_active: f.is_active.value === '1' };
+      try {
+        if (c) await api('PATCH', `/checklists/${c.id}`, body); else await api('POST', '/checklists', { ...body, project_id: Number(f.project_id.value) });
+        close(true); toast(t('saved')); renderSettings();
+      } catch (ex) { const er = d.querySelector('#clerr'); er.textContent = errText(ex); er.hidden = false; }
+    };
+  });
+}
