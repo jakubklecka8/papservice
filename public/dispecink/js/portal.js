@@ -352,9 +352,16 @@ function shell(active) {
     isAdmin() ? ['users', '#/users', '👥', t('navUsers')] : null,
   ].filter(Boolean);
 
+  const cur = nav.find((n) => n[0] === active);
   $root.innerHTML = `
     <div class="layout">
-      <aside class="side">
+      <header class="mtop">
+        <button class="mtop-btn" id="nav-toggle" aria-label="Menu">☰</button>
+        <span class="mtop-title">${cur ? cur[2] + ' ' + esc(cur[3]) : 'PAP ' + esc(t('title'))}</span>
+        ${canCreate() && active !== 'new' ? `<a class="mtop-btn" href="#/new" aria-label="${esc(t('navNew'))}">➕</a>` : ''}
+      </header>
+      <div class="nav-backdrop" id="nav-backdrop"></div>
+      <aside class="side" id="side">
         <div class="brand"><img src="/technik/icons/icon-192.png" alt="">PAP ${esc(t('title'))}</div>
         <nav class="nav">
           ${nav.map(([k, href, ic, label]) => `<a href="${href}" class="${k === active ? 'on' : ''}">${ic} ${esc(label)}</a>`).join('')}
@@ -368,6 +375,12 @@ function shell(active) {
       </aside>
       <main class="content" id="content"><div class="spinner"></div></main>
     </div>`;
+  const side = document.getElementById('side');
+  const toggleNav = (open) => document.body.classList.toggle('nav-open', open);
+  document.getElementById('nav-toggle').onclick = () => toggleNav(!document.body.classList.contains('nav-open'));
+  document.getElementById('nav-backdrop').onclick = () => toggleNav(false);
+  side.querySelectorAll('.nav a').forEach((a) => { a.addEventListener('click', () => toggleNav(false)); });
+  toggleNav(false);
   document.getElementById('btn-logout').onclick = () => logout(false);
   document.getElementById('btn-lang').onclick = () => {
     lang = lang === 'cs' ? 'pl' : 'cs';
@@ -510,13 +523,13 @@ async function renderTickets(q) {
     return `
       <tr class="prio-${esc(tk.priority)}" data-id="${tk.id}">
         <td class="num">${esc(tk.number || '#' + tk.id)}${tk.external_ref ? `<div class="muted small">${esc(tk.external_ref)}</div>` : ''}</td>
-        <td><strong>${esc(tk.title)}</strong><div class="muted small">${tk.source === 'email' ? '📧 ' : ''}${esc(tk.project?.name || '')} · ${esc(t('stype.' + tk.service_type))}${tk.needs_review ? ` <span class="chip waiting">⚠ ${esc(t('reviewBadge'))}</span>` : ''}</div></td>
+        <td class="lead"><strong>${esc(tk.title)}</strong><div class="muted small">${tk.source === 'email' ? '📧 ' : ''}${esc(tk.project?.name || '')} · ${esc(t('stype.' + tk.service_type))}${tk.needs_review ? ` <span class="chip waiting">⚠ ${esc(t('reviewBadge'))}</span>` : ''}</div></td>
         <td>${tk.location ? `${esc(tk.location.code)} · ${esc(tk.location.name)}<div class="muted small">${esc(tk.location.city || '')}</div>` : '<span class="muted">—</span>'}</td>
         <td>${tk.technician ? esc(tk.technician.name) : '<span class="muted">—</span>'}</td>
         <td>${chip(tk.status, t('status.' + tk.status))}</td>
-        <td>${tk.priority === 'normal' ? '<span class="muted">' + esc(t('prio.normal')) + '</span>' : esc(t('prio.' + tk.priority))}</td>
-        <td class="${overdue ? 'overdue' : ''}">${esc(fmt(tk.due_at))}</td>
-        <td class="muted small">${esc(fmt(tk.created_at))}</td>
+        <td class="${tk.priority === 'normal' ? 'hide-m' : ''}">${tk.priority === 'normal' ? '<span class="muted">' + esc(t('prio.normal')) + '</span>' : esc(t('prio.' + tk.priority))}</td>
+        <td class="${overdue ? 'overdue' : ''} ${tk.due_at ? '' : 'hide-m'}">${esc(fmt(tk.due_at))}</td>
+        <td class="muted small hide-m">${esc(fmt(tk.created_at))}</td>
       </tr>`;
   }).join('');
 
@@ -1768,3 +1781,23 @@ async function renderBilling(q) {
     } catch (e) { toast(errText(e), true); }
   };
 }
+
+
+// ================================================================ mobil: tabulky jako karty
+// Každé tabulce v obsahu doplní k buňkám popisek ze záhlaví – na úzkém displeji se z řádků
+// stanou karty (CSS table.resp), bez úprav jednotlivých stránek.
+function labelTables(root) {
+  root.querySelectorAll('table:not(.resp):not(.no-resp)').forEach((tbl) => {
+    if (tbl.closest('.modal')) return;
+    const heads = [...tbl.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    if (!heads.length) return;
+    tbl.classList.add('resp');
+    tbl.querySelectorAll('tbody tr').forEach((tr) => {
+      [...tr.children].forEach((td, i) => {
+        if (heads[i] && !td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i]);
+        if (i > 0 && !td.textContent.trim() && !td.querySelector('input,select,button,img')) td.classList.add('empty-m');
+      });
+    });
+  });
+}
+new MutationObserver(() => labelTables($root)).observe($root, { childList: true, subtree: true });
