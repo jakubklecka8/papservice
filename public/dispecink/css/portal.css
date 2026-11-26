@@ -316,3 +316,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand-2); o
   .rt-list { max-height: none; }
   .modal.modal-wide { width: 100vw; }
 }
+
+/* --- výdaje / odměny --- */
+.chip.exp-submitted { background: #e0e7ff; color: #3730a3; }
+.chip.exp-checked { background: #dbeafe; color: #1e40af; }
+.chip.exp-approved { background: #dcfce7; color: #166534; }
+.chip.exp-paid { background: #d1fae5; color: #065f46; }
+.chip.exp-returned { background: #fef3c7; color: #92400e; }
+.chip.exp-rejected { background: #fee2e2; color: #991b1b; }
+.exp-wrap { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+.exp-receipt { background: #f3f5f8; border-radius: 10px; min-height: 160px; display: grid; place-items: center; overflow: hidden; }
+.exp-receipt img { width: 100%; display: block; cursor: zoom-in; }
+.stm { max-height: 50vh; overflow-y: auto; margin-bottom: 10px; }
+.stm-total { display: flex; justify-content: space-between; padding: 10px 12px; background: #eef5fc; border-radius: 8px; margin-top: 6px; font-size: 16px; }
+.tabs a.tab { text-decoration: none; }
+input[type=month] { min-height: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid #c9d2dc; background: #fff; }
+@media (max-width: 820px) { .exp-wrap { grid-template-columns: 1fr; } input[type=month] { font-size: 16px; } }

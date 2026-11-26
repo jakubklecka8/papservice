@@ -36,6 +36,8 @@ class UserController extends Controller
                 'password' => $data['password'],
                 'phone' => $data['phone'] ?? null,
                 'home_address' => $data['home_address'] ?? null,
+                'settlement_mode' => $data['settlement_mode'] ?? 'reimburse',
+                'ico' => $data['ico'] ?? null,
                 'locale' => $data['locale'] ?? 'cs',
                 'is_active' => $data['is_active'] ?? true,
             ]);
@@ -65,7 +67,7 @@ class UserController extends Controller
         }
 
         DB::transaction(function () use ($user, $data) {
-            $fields = collect($data)->only(['name', 'phone', 'locale', 'is_active', 'home_address'])->all();
+            $fields = collect($data)->only(['name', 'phone', 'locale', 'is_active', 'home_address', 'settlement_mode', 'ico'])->all();
             if (array_key_exists('home_address', $fields) && $fields['home_address'] !== $user->home_address) {
                 $fields['home_lat'] = null;
                 $fields['home_lng'] = null;
@@ -105,6 +107,8 @@ class UserController extends Controller
             'password' => [$user ? 'nullable' : 'required', 'string', Password::min(8)],
             'phone' => ['nullable', 'string', 'max:32'],
             'home_address' => ['nullable', 'string', 'max:255'],
+            'settlement_mode' => ['sometimes', Rule::in(['reimburse', 'invoice'])],
+            'ico' => ['nullable', 'string', 'max:16'],
             'locale' => ['nullable', Rule::in(['cs', 'pl'])],
             'is_active' => ['sometimes', 'boolean'],
             'roles' => [$user ? 'sometimes' : 'required', 'array', 'min:1'],
@@ -138,6 +142,8 @@ class UserController extends Controller
             'phone' => $u->phone,
             'home_address' => $u->home_address,
             'home_located' => $u->home_lat !== null,
+            'settlement_mode' => $u->settlement_mode ?? 'reimburse',
+            'ico' => $u->ico,
             'locale' => $u->locale,
             'is_active' => (bool) $u->is_active,
             'roles' => $u->roleRows->sortBy('id')->pluck('role')->values(),

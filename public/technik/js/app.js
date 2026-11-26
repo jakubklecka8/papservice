@@ -13,7 +13,7 @@ import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -117,6 +117,10 @@ function setTop(title, back = false) {
 function parseRoute() {
   const h = location.hash.replace(/^#\/?/, '');
   if (h === 'login') return { view: 'login' };
+  if (h === 'expenses') return { view: 'expenses' };
+  let em = h.match(/^expenses\/(new|\d+)$/);
+  if (em) return { view: 'expense', id: em[1] };
+  if (h.startsWith('earnings')) return { view: 'earnings', month: new URLSearchParams(h.split('?')[1] || '').get('month') };
   if (h.startsWith('route')) return { view: 'route', date: new URLSearchParams(h.split('?')[1] || '').get('date') };
   let m = h.match(/^t\/(\d+)\/visit$/);
   if (m) return { view: 'visit', id: m[1] };
@@ -138,6 +142,9 @@ async function route() {
   if (r.view === 'detail') return renderDetail(r.id);
   if (r.view === 'visit') return renderVisit(r.id);
   if (r.view === 'route') return renderRoute(r.date);
+  if (r.view === 'expenses') return renderExpenses();
+  if (r.view === 'expense') return renderExpenseForm(r.id);
+  if (r.view === 'earnings') return renderEarnings(r.month);
   return renderList();
 }
 
@@ -863,6 +870,9 @@ async function loadServerImage(attUuid, img) {
 function openMenu() {
   sheet(`
     <h3>${esc(state.me?.name || t('menu'))}</h3>
+    <button class="menu-item" data-a="route">🧭 ${esc(t('routeToday'))}</button>
+    <button class="menu-item" data-a="expenses">🧾 ${esc(t('myExpenses'))}</button>
+    <button class="menu-item" data-a="earnings">💰 ${esc(t('myEarnings'))}</button>
     <button class="menu-item" data-a="sync">⇅ ${esc(t('sync'))}</button>
     ${pushSupported() ? (pushPermission() === 'granted'
     ? `<button class="menu-item" data-a="pushtest">🔔 ${esc(t('pushOn'))} · ${esc(t('pushTest'))}</button>`
@@ -875,6 +885,9 @@ function openMenu() {
     dlg.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => close(b.dataset.a); });
   }).then(async (a) => {
     if (a === 'sync') openSync();
+    if (a === 'route') location.hash = '#/route';
+    if (a === 'expenses') location.hash = '#/expenses';
+    if (a === 'earnings') location.hash = '#/earnings';
     if (a === 'push') turnOnPush();
     if (a === 'pushtest') {
       try { await api.pushTest(); toast(t('pushTestSent')); } catch { toast(t('offline'), true); }
@@ -1011,4 +1024,139 @@ async function renderRoute(date) {
 
   document.getElementById('r-prev').onclick = () => shift(-1);
   document.getElementById('r-next').onclick = () => shift(1);
+}
+
+
+// ---------------------------------------------------------------- výdaje a výdělek (krok 11)
+
+const EXP_CATS = ['fuel', 'parts', 'material', 'parking', 'toll', 'lodging', 'tools', 'other'];
+const money = (v, cur) => Number(v || 0).toLocaleString(getLang() === 'pl' ? 'pl-PL' : 'cs-CZ', { maximumFractionDigits: 2 }) + ' ' + ({ CZK: 'Kč', EUR: '€', PLN: 'zł' }[cur] || cur || '');
+
+async function renderExpenses() {
+  setTop('🧾 ' + t('myExpenses'), true);
+  $app.innerHTML = '<div class="spinner"></div>';
+  let list;
+  try { list = (await api.expenses()).data; await kv.set('expenses', list); } catch { list = (await kv.get('expenses')) || []; }
+  if (parseRoute().view !== 'expenses') return;
+  $app.innerHTML = `
+    <a class="btn primary" style="width:100%;margin-bottom:12px" href="#/expenses/new">➕ ${esc(t('newExpense'))}</a>
+    ${list.length ? list.map((e) => `
+      <a class="card ticket exp-${esc(e.status)}" href="#/expenses/${e.id}">
+        <div class="ticket-head"><span class="ticket-num">${esc(fmtDate(e.spent_on, false))}${e.ticket ? ' · ' + esc(e.ticket.number) : ''}</span><span class="chip exp-st ${esc(e.status)}">${esc(t('exp_' + e.status))}</span></div>
+        <div class="ticket-title">${esc(t('cat_' + e.category))} · ${esc(money(e.amount, e.currency))}</div>
+        <div class="ticket-loc">${esc(e.description || '')}${e.paid_with === 'company' ? ' · 💳 ' + esc(t('paidCompany')) : ''}</div>
+        ${e.status === 'returned' && e.return_note ? `<div class="banner warn small" style="margin:8px 0 0">↩ ${esc(e.return_note)}</div>` : ''}
+      </a>`).join('') : `<div class="empty">${esc(t('noExpenses'))}</div>`}`;
+}
+
+async function renderExpenseForm(id) {
+  const isNew = id === 'new';
+  setTop('🧾 ' + (isNew ? t('newExpense') : t('expense')), true);
+  let e = { category: 'fuel', currency: 'CZK', paid_with: 'own', spent_on: new Date().toISOString().slice(0, 10) };
+  if (!isNew) {
+    const list = (await kv.get('expenses')) || [];
+    e = list.find((x) => String(x.id) === String(id)) || e;
+  }
+  const editable = isNew || ['submitted', 'returned'].includes(e.status);
+  const dis = editable ? '' : 'disabled';
+  const tickets = ((await kv.get('tickets'))?.items || []);
+  let file = null;
+
+  $app.innerHTML = `
+    ${!isNew ? `<div class="banner ${e.status === 'returned' || e.status === 'rejected' ? 'warn' : 'ok'}">${esc(t('exp_' + e.status))}${e.return_note ? '<br><strong>' + esc(e.return_note) + '</strong>' : ''}</div>` : ''}
+    <form id="xf" class="card">
+      <label class="field"><span class="req">${esc(t('category'))}</span>
+        <select name="category" ${dis}>${EXP_CATS.map((c) => `<option value="${c}" ${e.category === c ? 'selected' : ''}>${esc(t('cat_' + c))}</option>`).join('')}</select></label>
+      <div class="row">
+        <label class="field" style="flex:2"><span class="req">${esc(t('amount'))}</span><input type="number" name="amount" inputmode="decimal" step="0.01" min="0.01" required value="${esc(e.amount ?? '')}" ${dis}></label>
+        <label class="field" style="flex:1"><span>${esc(t('currency'))}</span><select name="currency" ${dis}>${['CZK', 'EUR', 'PLN'].map((c) => `<option ${e.currency === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      </div>
+      <div class="row">
+        <label class="field"><span class="req">${esc(t('date'))}</span><input type="date" name="spent_on" required value="${esc(e.spent_on || '')}" max="${new Date().toISOString().slice(0, 10)}" ${dis}></label>
+        <label class="field" id="liters-f"><span>${esc(t('liters'))}</span><input type="number" name="liters" inputmode="decimal" step="0.01" min="0" value="${esc(e.liters ?? '')}" ${dis}></label>
+      </div>
+      <label class="field"><span>${esc(t('paidWith'))}</span>
+        <select name="paid_with" ${dis}><option value="own" ${e.paid_with === 'own' ? 'selected' : ''}>${esc(t('paidOwn'))}</option><option value="company" ${e.paid_with === 'company' ? 'selected' : ''}>${esc(t('paidCompany'))}</option></select></label>
+      <label class="field"><span>${esc(t('forTicket'))}</span>
+        <select name="ticket_id" ${dis}><option value="">—</option>${tickets.map((x) => `<option value="${x.id}" ${e.ticket?.id === x.id ? 'selected' : ''}>${esc(x.number || '#' + x.id)} · ${esc(x.location?.code || x.title)}</option>`).join('')}</select></label>
+      <label class="field"><span>${esc(t('note'))}</span><input type="text" name="description" maxlength="2000" value="${esc(e.description || '')}" ${dis}></label>
+      <div class="field"><span class="${isNew ? 'req' : ''}" style="display:block;font-size:14px;color:var(--muted);font-weight:600;margin-bottom:4px">${esc(t('receipt'))}</span>
+        <div class="photos">
+          <div class="photo" id="rc-prev" ${isNew ? 'hidden' : ''}><img alt=""></div>
+          ${editable ? `<label class="photo photo-add">📷 ${esc(t('receiptPhoto'))}<input type="file" accept="image/*,application/pdf" capture="environment" hidden id="rc-in"></label>` : ''}
+        </div></div>
+      ${editable ? `<div class="row" style="margin-top:12px">
+        ${!isNew ? `<button type="button" class="btn danger" id="x-del">${esc(t('remove'))}</button>` : ''}
+        <button class="btn primary" id="x-save">${esc(isNew ? t('submitExpense') : t('save'))}</button></div>` : ''}
+    </form>`;
+
+  const f = document.getElementById('xf');
+  const lit = document.getElementById('liters-f');
+  const syncLit = () => { lit.style.visibility = f.category.value === 'fuel' ? 'visible' : 'hidden'; };
+  f.category.addEventListener('change', syncLit); syncLit();
+  const prev = document.getElementById('rc-prev');
+  if (!isNew && e.has_receipt && e.receipt_mime?.startsWith('image/')) {
+    api.receipt(e.id).then(async (res) => { prev.querySelector('img').src = URL.createObjectURL(await res.blob()); }).catch(() => {});
+  } else if (!isNew && e.has_receipt) prev.innerHTML = '<div style="display:grid;place-items:center;height:100%">📄 PDF</div>';
+  document.getElementById('rc-in')?.addEventListener('change', async (ev) => {
+    const raw = ev.target.files[0];
+    if (!raw) return;
+    file = raw.type.startsWith('image/') ? await shrink(raw) : raw;
+    prev.hidden = false;
+    if (raw.type.startsWith('image/')) prev.innerHTML = `<img alt="" src="${URL.createObjectURL(file)}">`;
+    else prev.innerHTML = '<div style="display:grid;place-items:center;height:100%">📄 PDF</div>';
+  });
+  document.getElementById('x-del')?.addEventListener('click', async () => {
+    if (!(await confirmSheet(t('remove') + '?'))) return;
+    try { await api.deleteExpense(e.id); toast(t('saved')); location.hash = '#/expenses'; } catch (ex) { toast(ex.message || t('offline'), true); }
+  });
+  f.onsubmit = async (ev) => {
+    ev.preventDefault();
+    if (isNew && !file) { toast(t('receiptMissing'), true); return; }
+    const fd = new FormData();
+    if (isNew) fd.append('uuid', e.uuid || (e.uuid = uuid()));
+    for (const k of ['category', 'amount', 'currency', 'spent_on', 'paid_with', 'description', 'ticket_id']) if (f[k].value !== '') fd.append(k, f[k].value);
+    if (f.category.value === 'fuel' && f.liters.value) fd.append('liters', f.liters.value);
+    if (file) fd.append('receipt', file, file.name || 'uctenka.jpg');
+    const btn = document.getElementById('x-save');
+    btn.disabled = true;
+    try {
+      await api.saveExpense(fd, isNew ? null : e.id);
+      toast(t('expenseSent'));
+      location.hash = '#/expenses';
+    } catch (ex) {
+      btn.disabled = false;
+      toast(ex instanceof NetworkError ? t('expenseOffline') : (ex.data?.errors ? Object.values(ex.data.errors).flat().join(' ') : ex.message), true, 6000);
+    }
+  };
+}
+
+async function renderEarnings(month) {
+  const now = new Date();
+  const m = month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const d = new Date(m + '-15');
+  setTop('💰 ' + d.toLocaleDateString(getLang() === 'pl' ? 'pl-PL' : 'cs-CZ', { month: 'long', year: 'numeric' }), true);
+  $app.innerHTML = '<div class="spinner"></div>';
+  let s;
+  try { s = (await api.earnings(m)).data; } catch { $app.innerHTML = `<div class="empty">${esc(t('offline'))}</div>`; return; }
+  if (parseRoute().view !== 'earnings') return;
+  const shift = (n) => { const x = new Date(d); x.setMonth(x.getMonth() + n); location.hash = `#/earnings?month=${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`; };
+  const st = s.payout ? (s.payout.status === 'paid' ? `✓ ${t('payPaid')} ${fmtDate(s.payout.paid_at, false)}` : `✓ ${t('payConfirmed')}`) : t('payOpen');
+  $app.innerHTML = `
+    <div class="row" style="margin-bottom:12px"><button class="btn small" id="m-prev">‹</button><button class="btn small" id="m-next">›</button></div>
+    <div class="banner ${s.payout ? 'ok' : 'warn'}">${esc(st)}</div>
+    ${s.totals.map((x) => `<div class="card earn">
+      <div class="earn-total">${esc(money(x.total, x.currency))}</div>
+      <dl class="kv">
+        <dt>${esc(t('visits'))}</dt><dd>${x.visits} · ${esc(money(x.rewards, x.currency))}</dd>
+        <dt>${esc(t('km'))}</dt><dd>${x.km} km · ${esc(money(x.km_pay, x.currency))}</dd>
+        <dt>${esc(t('hoursOnSite'))}</dt><dd>${x.hours} h${x.hour_pay ? ' · ' + esc(money(x.hour_pay, x.currency)) : ''}</dd>
+        <dt>${esc(t('expensesOwn'))}</dt><dd>${esc(money(x.expenses, x.currency))}</dd>
+      </dl></div>`).join('') || `<div class="empty">${esc(t('noWork'))}</div>`}
+    ${s.rows.length ? `<div class="section-title">${esc(t('visits'))}</div><div class="card earn-rows">${s.rows.map((r) => `
+      <div><span>${esc(fmtDate(r.date, false))} · ${esc(r.location || '')}<br><span class="muted small">${esc(r.number || '')} · ${r.km} km · ${r.hours} h</span></span><strong>${esc(money(r.total, r.currency))}</strong></div>`).join('')}</div>` : ''}
+    ${s.expenses.length ? `<div class="section-title">${esc(t('expensesOwn'))}</div><div class="card earn-rows">${s.expenses.map((e) => `
+      <div><span>${esc(fmtDate(e.date, false))} · ${esc(t('cat_' + e.category))}</span><strong>${esc(money(e.amount, e.currency))}</strong></div>`).join('')}</div>` : ''}`;
+  document.getElementById('m-prev').onclick = () => shift(-1);
+  document.getElementById('m-next').onclick = () => shift(1);
 }

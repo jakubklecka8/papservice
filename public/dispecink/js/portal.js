@@ -209,6 +209,49 @@ const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
 const canPlan = () => has('admin', 'dispecer');
 const canDevices = () => has('admin', 'dispecer', 'ekonom', 'spolecnik');
 
+// ---- krok 11: výdaje, odměny, náklady
+Object.assign(T.cs, {
+  navExpenses: 'Výdaje', billTabBill: 'Fakturace', billTabPay: 'Odměny techniků', billTabCosts: 'Náklady projektů',
+  expStatus: { submitted: 'Ke kontrole', checked: 'Ke schválení', approved: 'Schváleno', paid: 'Uhrazeno', returned: 'Vráceno', rejected: 'Zamítnuto' },
+  expTabs: { todo: 'K řešení', approved: 'Schválené', paid: 'Uhrazené', back: 'Vrácené / zamítnuté', all: 'Vše' },
+  cat: { fuel: 'PHM', parts: 'Díly', material: 'Materiál', parking: 'Parkování', toll: 'Mýto', lodging: 'Ubytování', tools: 'Nářadí', other: 'Jiné' },
+  category: 'Druh', amount: 'Částka', spentOn: 'Datum', paidWith: 'Zaplaceno', paidOwn: 'ze svého', paidCompany: 'firemní kartou', liters: 'Litrů',
+  expCheck: '✓ Zkontrolováno', expApprove: '✓ Schválit', expPay: '💸 Uhrazeno', expReturn: '↩ Vrátit', expReject: '✕ Zamítnout', expReturnNote: 'Co má technik opravit?',
+  expChecked: 'Zkontroloval', expApproved: 'Schválil', receipt: 'Doklad', allTechsF: 'Všichni technici', month: 'Měsíc',
+  payMode: { reimburse: 'proplacení', invoice: 'faktura' }, settlement: 'Způsob vyplácení', ico: 'IČO (u faktury)',
+  visitsN: 'Výjezdy', hours: 'Hodiny', rewards: 'Odměny', kmPay: 'Za km', hourPay: 'Za hodiny', expensesOwn: 'Výdaje', total: 'Celkem',
+  payStatus: { open: 'Otevřené', confirmed: 'Potvrzené', paid: 'Vyplacené' }, payConfirm: '✓ Potvrdit vyúčtování', payPaid: '💸 Vyplaceno', payUnconfirm: 'Zrušit potvrzení',
+  payConfirmQ: 'Potvrdit vyúčtování? Čísla se zamrazí.', payRateMissing: 'U {n} výjezdů chybí sazba – nastav ji v Sazbách.', rates: 'Sazby techniků', newRate: 'Nová sazba',
+  perVisit: 'Za výjezd', perKm: 'Za km (PHM)', perHour: 'Za hodinu', allTechsR: 'všichni technici', allProjectsR: 'všechny projekty',
+  revenue: 'Příjmy', labour: 'Práce techniků', margin: 'Marže', ticketsN: 'Zakázky', costsNote: 'Příjmy podle ceníku/ceny zakázek, práce podle sazeb techniků, výdaje schválené a přiřazené k projektu.',
+  exportCsv2: '⬇ CSV',
+});
+Object.assign(T.pl, {
+  navExpenses: 'Wydatki', billTabBill: 'Fakturowanie', billTabPay: 'Wynagrodzenia', billTabCosts: 'Koszty projektów',
+  expStatus: { submitted: 'Do sprawdzenia', checked: 'Do zatwierdzenia', approved: 'Zatwierdzone', paid: 'Opłacone', returned: 'Zwrócone', rejected: 'Odrzucone' },
+  expTabs: { todo: 'Do załatwienia', approved: 'Zatwierdzone', paid: 'Opłacone', back: 'Zwrócone / odrzucone', all: 'Wszystkie' },
+  cat: { fuel: 'Paliwo', parts: 'Części', material: 'Materiał', parking: 'Parking', toll: 'Opłaty drogowe', lodging: 'Nocleg', tools: 'Narzędzia', other: 'Inne' },
+  category: 'Rodzaj', amount: 'Kwota', spentOn: 'Data', paidWith: 'Zapłacono', paidOwn: 'z własnych', paidCompany: 'kartą firmową', liters: 'Litrów',
+  expCheck: '✓ Sprawdzone', expApprove: '✓ Zatwierdź', expPay: '💸 Opłacone', expReturn: '↩ Zwróć', expReject: '✕ Odrzuć', expReturnNote: 'Co technik ma poprawić?',
+  expChecked: 'Sprawdził', expApproved: 'Zatwierdził', receipt: 'Dokument', allTechsF: 'Wszyscy technicy', month: 'Miesiąc',
+  payMode: { reimburse: 'zwrot', invoice: 'faktura' }, settlement: 'Sposób wypłaty', ico: 'NIP/IČO (faktura)',
+  visitsN: 'Wyjazdy', hours: 'Godziny', rewards: 'Wynagrodzenie', kmPay: 'Za km', hourPay: 'Za godziny', expensesOwn: 'Wydatki', total: 'Razem',
+  payStatus: { open: 'Otwarte', confirmed: 'Potwierdzone', paid: 'Wypłacone' }, payConfirm: '✓ Potwierdź rozliczenie', payPaid: '💸 Wypłacono', payUnconfirm: 'Anuluj potwierdzenie',
+  payConfirmQ: 'Potwierdzić rozliczenie? Liczby zostaną zamrożone.', payRateMissing: 'W {n} wyjazdach brak stawki – ustaw w Stawkach.', rates: 'Stawki techników', newRate: 'Nowa stawka',
+  perVisit: 'Za wyjazd', perKm: 'Za km (paliwo)', perHour: 'Za godzinę', allTechsR: 'wszyscy technicy', allProjectsR: 'wszystkie projekty',
+  revenue: 'Przychody', labour: 'Praca techników', margin: 'Marża', ticketsN: 'Zlecenia', costsNote: 'Przychody wg cennika/ceny zleceń, praca wg stawek techników, wydatki zatwierdzone i przypisane do projektu.',
+  exportCsv2: '⬇ CSV',
+});
+const EXP_TABS = { todo: 'submitted,checked', approved: 'approved', paid: 'paid', back: 'returned,rejected', all: '' };
+const thisMonthYm = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+async function downloadAuthed(path, name) {
+  try {
+    const res = await api('GET', path, undefined, { raw: true });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await res.blob()); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { toast(errText(e), true); }
+}
+
 const t = (k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), T[lang]) ?? k;
 
 // ================================================================ API
@@ -378,6 +421,7 @@ async function route() {
   if (path === '/emails' && has('admin', 'dispecer')) return renderEmails(q);
   if (path === '/billing' && canMoney()) return renderBilling(q);
   if (path === '/planning' && canPlan()) return renderPlanning(q);
+  if (path === '/expenses' && canDevices()) return renderExpensesAdmin(q);
   if (path === '/devices' && canDevices()) return renderDevices(q);
   if (path === '/settings' && isAdmin()) return renderSettings();
   if (path === '/users' && isAdmin()) return renderUsers();
@@ -393,6 +437,7 @@ function shell(active) {
     canDevices() ? ['devices', '#/devices', '🔧', t('navDevices')] : null,
     has('admin', 'dispecer', 'ekonom', 'spolecnik') ? ['stock', '#/stock', '📦', t('navStock')] : null,
     has('admin', 'dispecer') ? ['emails', '#/emails', '📧', t('navEmails')] : null,
+    canDevices() ? ['expenses', '#/expenses', '🧾', t('navExpenses')] : null,
     canMoney() ? ['billing', '#/billing', '💰', t('navBilling')] : null,
     isAdmin() ? ['settings', '#/settings', '⚙️', t('navSettings')] : null,
     isAdmin() ? ['users', '#/users', '👥', t('navUsers')] : null,
@@ -1200,6 +1245,8 @@ async function editUser(u, prj) {
         <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(cur.name || '')}"></label>
         <label class="f"><span class="req">${esc(t('email'))}</span><input type="email" name="email" required value="${esc(cur.email || '')}"></label>
         <label class="f"><span>${esc(t('phone'))}</span><input type="tel" name="phone" value="${esc(cur.phone || '')}"></label>
+        <label class="f"><span>💸 ${esc(t('settlement'))}</span><select name="settlement_mode"><option value="reimburse">${esc(t('payMode.reimburse'))}</option><option value="invoice" ${cur.settlement_mode === 'invoice' ? 'selected' : ''}>${esc(t('payMode.invoice'))}</option></select></label>
+        <label class="f"><span>${esc(t('ico'))}</span><input type="text" name="ico" maxlength="16" value="${esc(cur.ico || '')}"></label>
         <label class="f full"><span>🏠 ${esc(t('homeAddress'))}</span><input type="text" name="home_address" value="${esc(cur.home_address || '')}" placeholder="Ulice 1, 742 13 Studénka">
           ${cur.home_address && !cur.home_located ? `<small style="color:var(--bad)">⚠ ${esc(t('homeNotFound'))}</small>` : ''}</label>
         <label class="f"><span>${esc(t('language'))}</span><select name="locale"><option value="cs" ${cur.locale === 'cs' ? 'selected' : ''}>Čeština</option><option value="pl" ${cur.locale === 'pl' ? 'selected' : ''}>Polski</option></select></label>
@@ -1229,7 +1276,7 @@ async function editUser(u, prj) {
       e.preventDefault();
       const checked = (name) => [...d.querySelectorAll(`input[name=${name}]:checked`)].map((c) => c.value);
       const body = {
-        name: f.name.value.trim(), email: f.email.value.trim(), phone: f.phone.value.trim() || null, home_address: f.home_address.value.trim() || null,
+        name: f.name.value.trim(), email: f.email.value.trim(), phone: f.phone.value.trim() || null, home_address: f.home_address.value.trim() || null, settlement_mode: f.settlement_mode.value, ico: f.ico.value.trim() || null,
         locale: f.locale.value, is_active: f.is_active.value === '1',
         roles: checked('roles'), project_ids: checked('projects').map(Number), location_ids: checked('locs').map(Number),
       };
@@ -1703,8 +1750,6 @@ async function mailboxForm(m, prj) {
 
 // ================================================================ start
 
-window.addEventListener('hashchange', route);
-route();
 
 
 // ================================================================ cena, ceník, vyúčtování
@@ -1811,7 +1856,17 @@ async function tariffForm(x, prj) {
   });
 }
 
+const canFinance = () => has('admin', 'ekonom', 'spolecnik');
+const canFinanceEdit = () => has('admin', 'ekonom');
+function billingTabs(active) {
+  if (!canFinance()) return '';
+  return `<div class="tabs">${[['bill', '🧾 ' + t('billTabBill')], ['pay', '👷 ' + t('billTabPay')], ['costs', '📊 ' + t('billTabCosts')]]
+    .map(([k, l]) => `<a class="tab ${k === active ? 'on' : ''}" href="#/billing${k === 'bill' ? '' : '?tab=' + k}">${esc(l)}</a>`).join('')}</div>`;
+}
+
 async function renderBilling(q) {
+  if (q.get('tab') === 'pay' && canFinance()) return renderPayroll(q);
+  if (q.get('tab') === 'costs' && canFinance()) return renderProjectCosts(q);
   const el = shell('billing');
   const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const now = new Date();
@@ -1829,6 +1884,7 @@ async function renderBilling(q) {
 
   el.innerHTML = `
     <div class="page-head"><h1>💰 ${esc(t('navBilling'))}</h1></div>
+    ${billingTabs('bill')}
     <div class="card">
       <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:end">
         <label class="f"><span>${esc(t('billFrom'))}</span><input type="date" id="b-from" value="${esc(from)}"></label>
@@ -2544,3 +2600,246 @@ async function routeModal(techId, date) {
   });
   return changed;
 }
+
+// ================================================================ výdaje (krok 11)
+
+
+async function renderExpensesAdmin(q) {
+  const el = shell('expenses');
+  const tab = q.get('tab') || 'todo';
+  const user = q.get('user') || '';
+  const month = q.get('month') || '';
+  const setQ = (ch) => { const n = new URLSearchParams(q); Object.entries(ch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); location.hash = '#/expenses?' + n; };
+  const params = new URLSearchParams();
+  if (EXP_TABS[tab]) params.set('status', EXP_TABS[tab]);
+  if (user) params.set('user_id', user);
+  if (month) params.set('month', month);
+
+  let r, techs, prj;
+  try { [r, techs, prj] = await Promise.all([api('GET', '/expenses?' + params), technicians(), projects()]); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+  const cnt = r.counts || {};
+  const count = (k) => (EXP_TABS[k] ? EXP_TABS[k].split(',') : Object.keys(cnt)).reduce((a, x) => a + (Number(cnt[x]) || 0), 0);
+
+  el.innerHTML = `
+    <div class="page-head"><h1>🧾 ${esc(t('navExpenses'))}</h1></div>
+    <div class="tabs">${Object.keys(EXP_TABS).map((k) => `<button class="tab ${k === tab ? 'on' : ''} ${k === 'todo' && count(k) ? 'alert' : ''}" data-tab="${k}">${esc(t('expTabs.' + k))}<span class="n">${count(k)}</span></button>`).join('')}</div>
+    <div class="filters">
+      <select id="f-user"><option value="">${esc(t('allTechsF'))}</option>${techs.list.map((u) => `<option value="${u.id}" ${String(u.id) === user ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>
+      <input type="month" id="f-month" value="${esc(month)}">
+    </div>
+    <div class="table-wrap">${r.data.length ? `<table><thead><tr>
+      <th>${esc(t('spentOn'))}</th><th>${esc(t('technician'))}</th><th>${esc(t('category'))}</th><th class="num">${esc(t('amount'))}</th><th>${esc(t('project'))}</th><th>${esc(t('paidWith'))}</th><th>${esc(t('col.status'))}</th></tr></thead><tbody>
+      ${r.data.map((e, i) => `<tr data-e="${i}">
+        <td>${esc(fmt(e.spent_on, false))}</td>
+        <td><strong>${esc(e.user?.name || '')}</strong></td>
+        <td>${esc(t('cat.' + e.category))}${e.liters ? ` <span class="muted small">${esc(e.liters)} l</span>` : ''}${e.description ? `<div class="muted small">${esc(e.description)}</div>` : ''}</td>
+        <td class="num">${esc(money(e.amount, e.currency))}</td>
+        <td>${esc(e.project?.name || '—')}${e.ticket ? `<div class="muted small">${esc(e.ticket.number)}</div>` : ''}</td>
+        <td>${esc(e.paid_with === 'own' ? t('paidOwn') : t('paidCompany'))}</td>
+        <td>${chip('exp-' + e.status, t('expStatus.' + e.status))}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="card empty">—</div>`}</div>`;
+
+  el.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => setQ({ tab: b.dataset.tab }); });
+  el.querySelector('#f-user').onchange = (e) => setQ({ user: e.target.value });
+  el.querySelector('#f-month').onchange = (e) => setQ({ month: e.target.value });
+  el.querySelectorAll('[data-e]').forEach((tr) => { tr.onclick = () => expenseModal(r.data[Number(tr.dataset.e)], prj); });
+}
+
+async function expenseModal(e, prj) {
+  const disp = has('admin', 'dispecer');
+  const eko = canFinanceEdit();
+  const s = e.status;
+  const acts = [
+    disp && s === 'submitted' ? ['check', 'success', t('expCheck')] : null,
+    eko && ['submitted', 'checked'].includes(s) ? ['approve', 'success', t('expApprove')] : null,
+    eko && s === 'approved' ? ['pay', 'primary', t('expPay')] : null,
+    (disp || eko) && ['submitted', 'checked', 'approved'].includes(s) ? ['return', '', t('expReturn')] : null,
+    (disp || eko) && ['submitted', 'checked', 'approved', 'returned'].includes(s) ? ['reject', 'danger', t('expReject')] : null,
+  ].filter(Boolean);
+  const res = await modal(`
+    <h3>🧾 ${esc(t('cat.' + e.category))} · ${esc(money(e.amount, e.currency))}</h3>
+    <div class="exp-wrap">
+      <div class="exp-receipt" id="exp-rc">${e.has_receipt ? '<div class="spinner"></div>' : '<div class="muted">—</div>'}</div>
+      <div>
+        <dl class="kv">
+          <dt>${esc(t('technician'))}</dt><dd><strong>${esc(e.user?.name || '')}</strong></dd>
+          <dt>${esc(t('spentOn'))}</dt><dd>${esc(fmt(e.spent_on, false))}</dd>
+          <dt>${esc(t('paidWith'))}</dt><dd>${esc(e.paid_with === 'own' ? t('paidOwn') : t('paidCompany'))}</dd>
+          ${e.liters ? `<dt>${esc(t('liters'))}</dt><dd>${esc(e.liters)} l · ${esc(money(e.amount / e.liters, e.currency))}/l</dd>` : ''}
+          ${e.ticket ? `<dt>${esc(t('navTickets'))}</dt><dd><a href="#/t/${e.ticket.id}">${esc(e.ticket.number)}</a></dd>` : ''}
+          <dt>${esc(t('project'))}</dt><dd>${(disp || eko) && !['paid', 'rejected'].includes(s) ? `<select id="exp-prj"><option value="">—</option>${prj.map((p) => `<option value="${p.id}" ${e.project?.id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` : esc(e.project?.name || '—')}</dd>
+          ${e.description ? `<dt>${esc(t('tariffNote'))}</dt><dd class="desc">${esc(e.description)}</dd>` : ''}
+          <dt>${esc(t('col.status'))}</dt><dd>${chip('exp-' + s, t('expStatus.' + s))}</dd>
+          ${e.checked ? `<dt>${esc(t('expChecked'))}</dt><dd>${esc(e.checked.by || '')} · ${esc(fmt(e.checked.at))}</dd>` : ''}
+          ${e.approved ? `<dt>${esc(t('expApproved'))}</dt><dd>${esc(e.approved.by || '')} · ${esc(fmt(e.approved.at))}</dd>` : ''}
+          ${e.return_note ? `<dt>↩</dt><dd>${esc(e.return_note)}</dd>` : ''}
+        </dl>
+      </div>
+    </div>
+    <div class="modal-foot">${acts.map(([a, cls, label]) => `<button class="btn ${cls}" data-act="${a}">${esc(label)}</button>`).join('')}<span class="sp"></span><button class="btn" data-close>${esc(t('cancel'))}</button></div>`,
+  (d, close) => {
+    if (e.has_receipt) {
+      api('GET', `/expenses/${e.id}/receipt`, undefined, { raw: true }).then(async (r) => {
+        const url = URL.createObjectURL(await r.blob());
+        d.querySelector('#exp-rc').innerHTML = (e.receipt_mime || '').startsWith('image/')
+          ? `<a href="${url}" target="_blank"><img src="${url}" alt=""></a>` : `<a class="btn" href="${url}" target="_blank">📄 PDF</a>`;
+      }).catch((ex) => { d.querySelector('#exp-rc').textContent = errText(ex); });
+    }
+    d.querySelectorAll('[data-act]').forEach((b) => {
+      b.onclick = async () => {
+        let note = null;
+        if (b.dataset.act === 'return' || b.dataset.act === 'reject') {
+          note = await promptModal(t('expReturnNote'), b.dataset.act === 'return');
+          if (note === undefined || (b.dataset.act === 'return' && !note)) { close(); return; }
+        }
+        const pid = d.querySelector('#exp-prj')?.value;
+        try {
+          await api('POST', `/expenses/${e.id}/action`, { action: b.dataset.act, note, ...(pid ? { project_id: Number(pid) } : {}) });
+          toast(t('saved')); close('done');
+        } catch (ex) { toast(errText(ex), true); }
+      };
+    });
+  });
+  if (res === 'done' || res === undefined) route();
+}
+
+// ================================================================ odměny techniků
+
+async function renderPayroll(q) {
+  const el = shell('billing');
+  const month = q.get('month') || thisMonthYm();
+  let r;
+  try { r = await api('GET', '/payroll?month=' + month); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+  const stOf = (x) => (x.payout ? x.payout.status : 'open');
+  el.innerHTML = `
+    <div class="page-head"><h1>💰 ${esc(t('navBilling'))}</h1>
+      ${canFinanceEdit() ? `<button class="btn" id="p-rates">⚙️ ${esc(t('rates'))}</button>` : ''}
+      <button class="btn" id="p-csv">${esc(t('exportCsv2'))}</button></div>
+    ${billingTabs('pay')}
+    <div class="filters"><input type="month" id="p-month" value="${esc(month)}"></div>
+    <div class="table-wrap">${r.data.length ? `<table><thead><tr>
+      <th>${esc(t('technician'))}</th><th class="num">${esc(t('visitsN'))}</th><th class="num">km</th><th class="num">${esc(t('hours'))}</th>
+      <th class="num">${esc(t('rewards'))}</th><th class="num">${esc(t('kmPay'))}</th><th class="num">${esc(t('expensesOwn'))}</th><th class="num">${esc(t('total'))}</th><th>${esc(t('col.status'))}</th></tr></thead><tbody>
+      ${r.data.flatMap((x, i) => (x.totals.length ? x.totals : [{ currency: 'CZK', visits: 0, km: 0, hours: 0, rewards: 0, km_pay: 0, hour_pay: 0, expenses: 0, total: 0 }]).map((tt) => `<tr data-p="${i}">
+        <td><strong>${esc(x.technician.name)}</strong><div class="muted small">${esc(t('payMode.' + x.technician.settlement_mode))}${x.rate_missing ? ` · <span style="color:var(--bad)">⚠ ${x.rate_missing}</span>` : ''}</div></td>
+        <td class="num">${tt.visits}</td><td class="num">${esc(qtyFmtNum(tt.km))}</td><td class="num">${esc(qtyFmtNum(tt.hours))}</td>
+        <td class="num">${esc(money(tt.rewards + tt.hour_pay, tt.currency))}</td><td class="num">${esc(money(tt.km_pay, tt.currency))}</td>
+        <td class="num">${esc(money(tt.expenses, tt.currency))}</td><td class="num"><strong>${esc(money(tt.total, tt.currency))}</strong></td>
+        <td>${chip(stOf(x) === 'paid' ? 'approved' : stOf(x) === 'confirmed' ? 'completed' : 'draft', t('payStatus.' + stOf(x)))}</td></tr>`)).join('')}
+    </tbody></table>` : `<div class="card empty">—</div>`}</div>`;
+  el.querySelector('#p-month').onchange = (e) => { location.hash = '#/billing?tab=pay&month=' + e.target.value; };
+  el.querySelector('#p-csv').onclick = () => downloadAuthed('/payroll/export?month=' + month, `odmeny_${month}.csv`);
+  el.querySelector('#p-rates')?.addEventListener('click', () => ratesModal());
+  el.querySelectorAll('[data-p]').forEach((tr) => { tr.onclick = () => statementModal(r.data[Number(tr.dataset.p)].technician, month); });
+}
+
+async function statementModal(tech, month) {
+  let s;
+  try { s = (await api('GET', `/payroll/statement?month=${month}&user_id=${tech.id}`)).data; } catch (e) { toast(errText(e), true); return; }
+  const p = s.payout;
+  const res = await modal(`
+    <h3>👷 ${esc(tech.name)} · ${esc(month)} <span class="muted small">(${esc(t('payMode.' + s.technician.settlement_mode))}${s.technician.ico ? ' · IČO ' + esc(s.technician.ico) : ''})</span></h3>
+    ${s.rate_missing ? `<div class="banner warn small">${esc(t('payRateMissing').replace('{n}', s.rate_missing))}</div>` : ''}
+    ${p ? `<div class="banner ok small">${esc(t('payStatus.' + p.status))} · ${esc(p.confirmed_by || '')} ${esc(fmt(p.confirmed_at))}${p.paid_at ? ' · 💸 ' + esc(fmt(p.paid_at)) : ''}</div>` : ''}
+    <div class="stm">
+      <table class="tbl no-resp"><thead><tr><th>${esc(t('spentOn'))}</th><th>${esc(t('location'))}</th><th class="num">km</th><th class="num">h</th><th class="num">${esc(t('total'))}</th></tr></thead><tbody>
+        ${s.rows.map((r) => `<tr><td>${esc(fmt(r.date, false))}</td><td>${esc(r.location || '')}<div class="muted small">${esc(r.number || '')} · ${esc(r.project || '')}${r.rate_missing ? ' · <span style="color:var(--bad)">⚠</span>' : ''}</div></td>
+          <td class="num">${esc(qtyFmtNum(r.km))}</td><td class="num">${esc(qtyFmtNum(r.hours))}</td><td class="num">${esc(money(r.total, r.currency))}</td></tr>`).join('')}
+        ${s.expenses.map((x) => `<tr><td>${esc(fmt(x.date, false))}</td><td>🧾 ${esc(t('cat.' + x.category))}${x.description ? ` <span class="muted small">${esc(x.description)}</span>` : ''}</td><td></td><td></td><td class="num">${esc(money(x.amount, x.currency))}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    ${s.totals.map((x) => `<div class="stm-total"><span>${x.visits}× · ${esc(qtyFmtNum(x.km))} km · ${esc(qtyFmtNum(x.hours))} h</span><strong>${esc(money(x.total, x.currency))}</strong></div>`).join('')}
+    <div class="modal-foot">
+      ${canFinanceEdit() && !p ? `<button class="btn success" data-a="confirm">${esc(t('payConfirm'))}</button>` : ''}
+      ${canFinanceEdit() && p?.status === 'confirmed' ? `<button class="btn primary" data-a="pay">${esc(t('payPaid'))}</button><button class="btn danger" data-a="unconfirm">${esc(t('payUnconfirm'))}</button>` : ''}
+      <button class="btn" data-a="csv">${esc(t('exportCsv2'))}</button><span class="sp"></span><button class="btn" data-close>${esc(t('cancel'))}</button>
+    </div>`, (d, close) => { d.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => close(b.dataset.a); }); });
+  try {
+    if (res === 'csv') return downloadAuthed(`/payroll/export?month=${month}&user_id=${tech.id}`, `odmeny_${month}_${tech.name}.csv`);
+    if (res === 'confirm') { if (!(await confirmModal(t('payConfirmQ')))) return route(); await api('POST', '/payroll/confirm', { user_id: tech.id, month }); }
+    if (res === 'pay') await api('POST', `/payouts/${p.id}/pay`);
+    if (res === 'unconfirm') await api('DELETE', `/payouts/${p.id}`);
+    if (res) { toast(t('saved')); route(); }
+  } catch (e) { toast(errText(e), true); }
+}
+
+async function ratesModal() {
+  let rates, techs, prj;
+  try { [rates, techs, prj] = await Promise.all([api('GET', '/pay-rates').then((r) => r.data), technicians(), projects()]); } catch (e) { toast(errText(e), true); return; }
+  const res = await modal(`
+    <h3>⚙️ ${esc(t('rates'))}</h3>
+    <p class="muted small" style="margin-top:-6px">Platí nejkonkrétnější řádek: technik + projekt + typ › … › obecná sazba.</p>
+    <table class="tbl no-resp"><thead><tr><th>${esc(t('technician'))}</th><th>${esc(t('project'))}</th><th>${esc(t('serviceType'))}</th><th class="num">${esc(t('perVisit'))}</th><th class="num">${esc(t('perKm'))}</th><th class="num">${esc(t('perHour'))}</th></tr></thead><tbody>
+      ${rates.map((r, i) => `<tr data-r="${i}" style="cursor:pointer"><td>${esc(r.user?.name || t('allTechsR'))}</td><td>${esc(r.project?.name || t('allProjectsR'))}</td><td>${esc(r.service_type ? t('stype.' + r.service_type) : t('allTypes'))}</td>
+        <td class="num">${esc(money(r.per_visit, r.currency))}</td><td class="num">${esc(money(r.per_km, r.currency))}</td><td class="num">${esc(money(r.per_hour, r.currency))}</td></tr>`).join('') || `<tr><td colspan="6" class="muted">—</td></tr>`}
+    </tbody></table>
+    <div class="modal-foot"><button class="btn primary" data-a="new">➕ ${esc(t('newRate'))}</button><span class="sp"></span><button class="btn" data-close>${esc(t('cancel'))}</button></div>`,
+  (d, close) => {
+    d.querySelector('[data-a=new]').onclick = () => close({ rate: null });
+    d.querySelectorAll('[data-r]').forEach((tr) => { tr.onclick = () => close({ rate: rates[Number(tr.dataset.r)] }); });
+  });
+  if (res) { await rateForm(res.rate, techs.list, prj); ratesModal(); }
+}
+
+async function rateForm(r, techs, prj) {
+  const c = r || { currency: 'CZK', per_visit: 0, per_km: 0, per_hour: 0 };
+  await modal(`
+    <h3>⚙️ ${esc(r ? t('rates') : t('newRate'))}</h3>
+    <form id="rf"><div class="form-grid">
+      <label class="f"><span>${esc(t('technician'))}</span><select name="user_id"><option value="">${esc(t('allTechsR'))}</option>${techs.map((u) => `<option value="${u.id}" ${c.user?.id === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('project'))}</span><select name="project_id"><option value="">${esc(t('allProjectsR'))}</option>${prj.map((p) => `<option value="${p.id}" ${c.project?.id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('serviceType'))}</span><select name="service_type"><option value="">${esc(t('allTypes'))}</option>${SERVICE_TYPES.map((x) => `<option value="${x}" ${c.service_type === x ? 'selected' : ''}>${esc(t('stype.' + x))}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('currency'))}</span><select name="currency">${['CZK', 'EUR', 'PLN'].map((x) => `<option ${c.currency === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="f"><span>${esc(t('perVisit'))}</span><input type="text" inputmode="decimal" name="per_visit" value="${esc(c.per_visit)}"></label>
+      <label class="f"><span>${esc(t('perKm'))}</span><input type="text" inputmode="decimal" name="per_km" value="${esc(c.per_km)}"></label>
+      <label class="f"><span>${esc(t('perHour'))}</span><input type="text" inputmode="decimal" name="per_hour" value="${esc(c.per_hour)}"></label>
+      <label class="f"><span>${esc(t('tariffNote'))}</span><input type="text" name="note" value="${esc(c.note || '')}"></label>
+    </div>
+    <div class="banner err" id="rerr" hidden></div>
+    <div class="modal-foot">${r ? `<button type="button" class="btn danger" id="r-del">${esc(t('delete'))}</button>` : ''}<span class="sp"></span>
+      <button type="button" class="btn" data-close>${esc(t('cancel'))}</button><button class="btn primary">${esc(t('save'))}</button></div></form>`,
+  (d, close) => {
+    const f = d.querySelector('#rf');
+    const num = (v) => Number(String(v || 0).replace(',', '.'));
+    d.querySelector('#r-del')?.addEventListener('click', async () => { try { await api('DELETE', `/pay-rates/${r.id}`); close(true); } catch (ex) { toast(errText(ex), true); } });
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const body = {
+        user_id: f.user_id.value ? Number(f.user_id.value) : null, project_id: f.project_id.value ? Number(f.project_id.value) : null,
+        service_type: f.service_type.value || null, currency: f.currency.value,
+        per_visit: num(f.per_visit.value), per_km: num(f.per_km.value), per_hour: num(f.per_hour.value), note: f.note.value.trim() || null,
+      };
+      try {
+        if (r) await api('PATCH', `/pay-rates/${r.id}`, body); else await api('POST', '/pay-rates', body);
+        toast(t('saved')); close(true);
+      } catch (ex) { const er = d.querySelector('#rerr'); er.textContent = errText(ex); er.hidden = false; }
+    };
+  });
+}
+
+// ================================================================ náklady projektů
+
+async function renderProjectCosts(q) {
+  const el = shell('billing');
+  const month = q.get('month') || thisMonthYm();
+  let r;
+  try { r = await api('GET', '/project-costs?month=' + month); } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+  el.innerHTML = `
+    <div class="page-head"><h1>💰 ${esc(t('navBilling'))}</h1></div>
+    ${billingTabs('costs')}
+    <div class="filters"><input type="month" id="c-month" value="${esc(month)}"></div>
+    <p class="muted small">${esc(t('costsNote'))}</p>
+    <div class="table-wrap">${r.data.length ? `<table><thead><tr>
+      <th>${esc(t('project'))}</th><th class="num">${esc(t('ticketsN'))}</th><th class="num">${esc(t('visitsN'))}</th><th class="num">${esc(t('hours'))}</th>
+      <th class="num">${esc(t('revenue'))}</th><th class="num">${esc(t('labour'))}</th><th class="num">${esc(t('expensesOwn'))}</th><th class="num">${esc(t('margin'))}</th></tr></thead><tbody>
+      ${r.data.map((x) => `<tr><td><strong>${esc(x.project)}</strong> <span class="muted small">${esc(x.currency)}</span></td>
+        <td class="num">${x.tickets}</td><td class="num">${x.visits}</td><td class="num">${esc(qtyFmtNum(x.hours))}</td>
+        <td class="num">${esc(money(x.revenue, x.currency))}</td><td class="num">${esc(money(x.labour, x.currency))}</td><td class="num">${esc(money(x.expenses, x.currency))}</td>
+        <td class="num"><strong style="color:${x.margin < 0 ? 'var(--bad)' : 'var(--ok)'}">${esc(money(x.margin, x.currency))}</strong>${x.revenue ? `<div class="muted small">${Math.round(x.margin / x.revenue * 100)} %</div>` : ''}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="card empty">—</div>`}</div>`;
+  el.querySelector('#c-month').onchange = (e) => { location.hash = '#/billing?tab=costs&month=' + e.target.value; };
+}
+
+// ================================================================ start (až po definici všech konstant)
+window.addEventListener('hashchange', route);
+route();

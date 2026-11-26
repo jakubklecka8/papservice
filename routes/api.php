@@ -6,8 +6,10 @@ use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\LookupController;
+use App\Http\Controllers\Api\V1\PayrollController;
 use App\Http\Controllers\Api\V1\PlanningController;
 use App\Http\Controllers\Api\V1\ProtocolController;
 use App\Http\Controllers\Api\V1\PushController;
@@ -94,6 +96,25 @@ Route::prefix('v1')->group(function () {
         Route::post('checklists', [SetupController::class, 'storeChecklist']);
         Route::patch('checklists/{checklist}', [SetupController::class, 'updateChecklist']);
         Route::delete('checklists/{checklist}', [SetupController::class, 'destroyChecklist']);
+
+        Route::get('expenses', [ExpenseController::class, 'index']);
+        Route::post('expenses', [ExpenseController::class, 'store']);
+        Route::post('expenses/{expense}', [ExpenseController::class, 'update']);
+        Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy']);
+        Route::post('expenses/{expense}/action', [ExpenseController::class, 'action']);
+        Route::get('expenses/{expense}/receipt', [ExpenseController::class, 'receipt']);
+
+        Route::get('pay-rates', [PayrollController::class, 'rates']);
+        Route::post('pay-rates', [PayrollController::class, 'storeRate']);
+        Route::patch('pay-rates/{rate}', [PayrollController::class, 'updateRate']);
+        Route::delete('pay-rates/{rate}', [PayrollController::class, 'destroyRate']);
+        Route::get('payroll', [PayrollController::class, 'overview']);
+        Route::get('payroll/statement', [PayrollController::class, 'statement']);
+        Route::get('payroll/export', [PayrollController::class, 'export']);
+        Route::post('payroll/confirm', [PayrollController::class, 'confirm']);
+        Route::post('payouts/{payout}/pay', [PayrollController::class, 'pay']);
+        Route::delete('payouts/{payout}', [PayrollController::class, 'unconfirm']);
+        Route::get('project-costs', [PayrollController::class, 'projects']);
 
         Route::get('tariffs', [BillingController::class, 'tariffs']);
         Route::post('tariffs', [BillingController::class, 'storeTariff']);
