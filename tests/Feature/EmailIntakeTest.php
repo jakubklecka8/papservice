@@ -458,6 +458,20 @@ class EmailIntakeTest extends TestCase
         $this->assertSame(['RITM0022222'], Ticket::pluck('external_ref')->all());
     }
 
+    public function test_polish_text_with_special_letters_is_saved(): void
+    {
+        // „ą“ = C4 85 – bajt 0x85 dřív rozbil dělení řádků
+        $body = "Cześć,\nProszę o wymianę 1ego monitora – zdemontowany ekran zabrać ze sobą.\nDziękujemy, będą części.\n\n> cytowana wiadomość";
+        $this->reader->messages[] = $this->msg(10, '<pl@m4b.pl>', '#95186 - Wymiana monitora ZB-1234', $body);
+        $this->runImport();
+
+        $ticket = Ticket::sole();
+        $this->assertStringContainsString('zdemontowany ekran zabrać ze sobą', $ticket->description);
+        $this->assertStringContainsString('będą części', $ticket->description);
+        $this->assertTrue(mb_check_encoding($ticket->description, 'UTF-8'));
+        $this->assertStringNotContainsString('cytowana', $ticket->description);
+    }
+
     public function test_mailbox_admin_and_email_access(): void
     {
         Sanctum::actingAs($this->dispecer);

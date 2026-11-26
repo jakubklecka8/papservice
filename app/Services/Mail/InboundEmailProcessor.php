@@ -230,6 +230,8 @@ class InboundEmailProcessor
 
             $description = trim(($ai['summary'] ? $ai['summary']."\n\n— — —\n" : '').Str::limit(MailText::forDescription($this->stripQuoted((string) $email->body_text)), 9000));
 
+            $description = self::utf8($description);
+
             $ticket = Ticket::create([
                 'project_id' => $projectId,
                 'end_customer_id' => $endCustomerId,
@@ -239,7 +241,7 @@ class InboundEmailProcessor
                 'status' => TicketStatus::New,
                 'source' => 'email',
                 'needs_review' => $location === null,
-                'title' => $ai['title'] ?: 'Požadavek z e-mailu',
+                'title' => self::utf8($ai['title'] ?: 'Požadavek z e-mailu'),
                 'description' => $description ?: null,
                 'reporter_name' => $email->from_name,
                 'reporter_email' => $email->from_email,
@@ -281,10 +283,16 @@ class InboundEmailProcessor
         }
     }
 
+    /** Pojistka: neplatné UTF-8 (rozbitý znak) by databáze odmítla */
+    public static function utf8(?string $s): ?string
+    {
+        return $s === null ? null : mb_scrub($s, 'UTF-8');
+    }
+
     /** Odřízne citovanou předchozí korespondenci („> …“, „Dne … napsal:“, „From: …“) */
     private function stripQuoted(string $text): string
     {
-        $lines = preg_split('/\R/', $text);
+        $lines = preg_split('/\R/u', $text) ?: explode("\n", $text); // /u: bez něj \R bere bajt 0x85 z „ą“ jako konec řádku
         $out = [];
         foreach ($lines as $line) {
             if (preg_match('/^(\s*>|-{2,}\s*Original|-----Původní|-----Oryginalna|Dne .+ napsal|W dniu .+ napisał|On .+ wrote:|From:\s|Od:\s)/iu', $line)) {
