@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Mailbox;
+use App\Services\Mail\MailboxImporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -34,8 +36,18 @@ class PapTick extends Command
         try {
             $seconds = (int) ($this->option('seconds') ?: config('pap.tick_seconds'));
 
-            // M3: sem přibude import e-mailové schránky (IMAP) – před frontou,
-            // aby se potvrzení nových požadavků odeslala ve stejném běhu.
+            // e-mailové schránky (každé 2 minuty) – před frontou, aby se nové
+            // požadavky zpracovaly a potvrdily ve stejném běhu
+            if (! Cache::has('pap:mail:recent')) {
+                Cache::put('pap:mail:recent', true, 110);
+                foreach (Mailbox::where('is_active', true)->get() as $mailbox) {
+                    try {
+                        app(MailboxImporter::class)->import($mailbox);
+                    } catch (Throwable $e) {
+                        report($e);
+                    }
+                }
+            }
 
             Artisan::call('queue:work', [
                 '--stop-when-empty' => true,

@@ -73,6 +73,17 @@ Adresa `/dispecink/` (rozcestník je na `/`). CZ/PL.
 - uživatelé (jen admin): role, projekty, provozovny zákazníka, jazyk, deaktivace
 - společník a ekonom mají jen čtení
 
+## Příjem požadavků e-mailem (M3, krok 07)
+
+Dispečink → **Nastavení**: schránky (každá patří k projektu) a API klíč pro AI. Hesla a klíč se ukládají šifrovaně v DB.
+
+- cron každé 2 minuty načte nové zprávy (IMAP, zprávy zůstávají nepřečtené); stejná zpráva se uloží jen jednou (Message-ID)
+- odpověď ve vlákně (In-Reply-To/References nebo číslo PAP-… v předmětu) se připojí k existující zakázce i s fotkami
+- nový e-mail → AI (Claude) vytáhne typ, prioritu, název a nápovědy k provozovně → provozovna se dohledá v DB; bez API klíče se hledá jen kód provozovny v textu
+- nejasná provozovna → zakázka s „⚠ ověřit provozovnu“, dispečer vybere z kandidátů
+- potvrzení s číslem odejde až po uložení zakázky, jednou, ve stejném vlákně, přes SMTP schránky (CZ/PL podle jazyka e-mailu)
+- **E-maily** v dispečinku: přehled, k řešení (nejasné, chyby, ignorované), ruční „Vytvořit zakázku“
+
 ## Sklady (M4)
 
 V dispečinku **Sklady**. Sklady Zásilkovna, Allegro, AmRest, BK REX, PLK REX a sklad každého technika (zakládá se sám).

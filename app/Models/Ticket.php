@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -17,7 +18,7 @@ class Ticket extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'uuid', 'project_id', 'end_customer_id', 'location_id', 'service_type', 'priority', 'status', 'source',
+        'uuid', 'project_id', 'end_customer_id', 'location_id', 'service_type', 'priority', 'status', 'source', 'needs_review',
         'title', 'description', 'created_by', 'reporter_name', 'reporter_email', 'reporter_phone',
         'assigned_technician_id', 'assigned_by', 'assigned_at', 'due_at', 'closed_at', 'legacy_id', 'legacy_status',
     ];
@@ -26,6 +27,7 @@ class Ticket extends Model
     {
         return [
             'status' => TicketStatus::class,
+            'needs_review' => 'boolean',
             'assigned_at' => 'datetime',
             'due_at' => 'datetime',
             'closed_at' => 'datetime',
@@ -70,6 +72,12 @@ class Ticket extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** E-mail, ze kterého zakázka vznikla */
+    public function sourceEmail(): HasOne
+    {
+        return $this->hasOne(InboundEmail::class)->whereIn('status', ['ticket', 'review'])->oldest('id');
     }
 
     public function visits(): HasMany

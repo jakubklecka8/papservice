@@ -31,6 +31,15 @@ class TicketResource extends JsonResource
             'service_type' => $this->service_type,
             'priority' => $this->priority,
             'source' => $this->source,
+            'needs_review' => (bool) $this->needs_review,
+            'email' => $this->when(! $customerOnly && $this->relationLoaded('sourceEmail') && $this->sourceEmail, fn () => [
+                'id' => $this->sourceEmail->id,
+                'from' => trim(($this->sourceEmail->from_name ? $this->sourceEmail->from_name.' ' : '').'<'.$this->sourceEmail->from_email.'>'),
+                'subject' => $this->sourceEmail->subject,
+                'received_at' => $this->sourceEmail->received_at?->toIso8601String(),
+                'confirmation_sent_at' => $this->sourceEmail->confirmation_sent_at?->toIso8601String(),
+                'ai' => collect($this->sourceEmail->ai_result ?? [])->only(['engine', 'confidence', 'reason', 'candidates', 'location_hints'])->all(),
+            ]),
             'project' => $this->whenLoaded('project', fn () => ['id' => $this->project->id, 'code' => $this->project->code, 'name' => $this->project->name]),
             'location' => $this->whenLoaded('location', fn () => $this->location ? [
                 'id' => $this->location->id,

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\MailController;
 use App\Http\Controllers\Api\V1\Admin\UserController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -46,6 +47,19 @@ Route::prefix('v1')->group(function () {
         Route::post('stock/movements', [StockController::class, 'storeMovement']);
         Route::put('stock/minimums', [StockController::class, 'setMinimum']);
         Route::get('stock/reorder', [StockController::class, 'reorder']);
+
+        Route::get('admin/mailboxes', [MailController::class, 'mailboxes']);
+        Route::post('admin/mailboxes', [MailController::class, 'storeMailbox']);
+        Route::patch('admin/mailboxes/{mailbox}', [MailController::class, 'updateMailbox']);
+        Route::delete('admin/mailboxes/{mailbox}', [MailController::class, 'destroyMailbox']);
+        Route::post('admin/mailboxes/{mailbox}/test', [MailController::class, 'testMailbox']);
+        Route::post('admin/mailboxes/{mailbox}/fetch', [MailController::class, 'fetchNow']);
+        Route::get('admin/ai', [MailController::class, 'aiSettings']);
+        Route::put('admin/ai', [MailController::class, 'saveAiSettings']);
+        Route::post('admin/ai/test', [MailController::class, 'testAi']);
+        Route::get('emails', [MailController::class, 'emails']);
+        Route::get('emails/{email}', [MailController::class, 'email']);
+        Route::post('emails/{email}/action', [MailController::class, 'emailAction']);
 
         Route::get('tickets/summary', [TicketController::class, 'summary']);
         Route::get('tickets', [TicketController::class, 'index']);

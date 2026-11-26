@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Visit;
+use App\Services\Mail\ImapMailboxReader;
+use App\Services\Mail\MailboxReader;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
@@ -15,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->bind(MailboxReader::class, ImapMailboxReader::class);
     }
 
     public function boot(): void

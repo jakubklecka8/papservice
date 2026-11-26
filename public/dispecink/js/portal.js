@@ -52,6 +52,19 @@ const T = {
     adjustHint: 'Korekce: vyplň jen „Ze skladu“ (úbytek) nebo jen „Do skladu“ (přírůstek).',
     newPart: 'Nový díl', when: 'Kdy', who: 'Kdo', ticketCol: 'Zakázka', nonzero: 'Jen nenulové', pickPart: 'Vyber díl…',
     suggested: 'Doplnit', noReorder: 'Nic není pod minimem.', missingSn: 'chybí S/N', moved: 'Pohyb uložen',
+    navEmails: 'E-maily', navSettings: 'Nastavení', emailCard: 'Z e-mailu', confirmSent: 'Potvrzení s číslem odesláno',
+    confirmNotSent: 'Potvrzení zatím neodesláno', needsReview: 'Ověř provozovnu – z e-mailu nebyla jasná.', aiSays: 'AI', useLoc: 'Použít',
+    noCandidates: 'Žádný kandidát – vyber provozovnu přes Upravit.', reviewBadge: 'ověřit provozovnu',
+    est: { new: 'Čeká', ticket: 'Zakázka', appended: 'Připojeno', review: 'K ověření', ignored: 'Ignorováno', error: 'Chyba' },
+    etab: { todo: 'K řešení', all: 'Vše' }, from_: 'Od', subject: 'Předmět', received: 'Přijato', attachments: 'Přílohy',
+    ignore: 'Ignorovat', makeTicket: 'Vytvořit zakázku', noEmails: 'Žádné e-maily.',
+    aiTitle: 'AI asistent (Claude)', apiKey: 'API klíč', apiKeySet: 'nastaven', apiKeyNone: 'není nastaven – použije se jednoduché vyhodnocení',
+    model: 'Model', testAi: 'Otestovat AI', removeKey: 'Odebrat klíč', mailboxes: 'E-mailové schránky', newMailbox: 'Nová schránka',
+    imap: 'Příjem (IMAP)', smtp: 'Odesílání (SMTP)', host: 'Server', port: 'Port', encryption: 'Šifrování', username: 'Uživatel',
+    folder: 'Složka', fromAddress: 'Odesílatel (e-mail)', fromName: 'Odesílatel (jméno)', dedicated: 'Jen na požadavky',
+    dedicatedHint: 'Ne = AI rozliší, co je požadavek; ostatní pošta se jen zaznamená.', autoReply: 'Posílat potvrzení s číslem',
+    pwKeep: 'prázdné = beze změny', testConn: 'Otestovat připojení', fetchNow: 'Načíst teď', lastCheck: 'Naposledy',
+    connOk: 'OK', saveFirst: 'Nejdřív ulož.',
   },
   pl: {
     title: 'Dyspozytornia', email: 'E-mail', password: 'Hasło', login: 'Zaloguj', loginFailed: 'Błędny e-mail lub hasło.',
@@ -101,6 +114,19 @@ const T = {
     adjustHint: 'Korekta: wypełnij tylko „Z magazynu” (ubytek) albo tylko „Do magazynu” (przyrost).',
     newPart: 'Nowa część', when: 'Kiedy', who: 'Kto', ticketCol: 'Zlecenie', nonzero: 'Tylko niezerowe', pickPart: 'Wybierz część…',
     suggested: 'Uzupełnić', noReorder: 'Nic nie jest poniżej minimum.', missingSn: 'brak S/N', moved: 'Ruch zapisany',
+    navEmails: 'E-maile', navSettings: 'Ustawienia', emailCard: 'Z e-maila', confirmSent: 'Potwierdzenie z numerem wysłane',
+    confirmNotSent: 'Potwierdzenie jeszcze nie wysłane', needsReview: 'Sprawdź lokalizację – z e-maila nie była jasna.', aiSays: 'AI', useLoc: 'Użyj',
+    noCandidates: 'Brak kandydatów – wybierz lokalizację przez Edytuj.', reviewBadge: 'sprawdź lokalizację',
+    est: { new: 'Czeka', ticket: 'Zlecenie', appended: 'Dołączono', review: 'Do sprawdzenia', ignored: 'Zignorowano', error: 'Błąd' },
+    etab: { todo: 'Do załatwienia', all: 'Wszystkie' }, from_: 'Od', subject: 'Temat', received: 'Otrzymano', attachments: 'Załączniki',
+    ignore: 'Ignoruj', makeTicket: 'Utwórz zlecenie', noEmails: 'Brak e-maili.',
+    aiTitle: 'Asystent AI (Claude)', apiKey: 'Klucz API', apiKeySet: 'ustawiony', apiKeyNone: 'nie ustawiony – użyta zostanie prosta ocena',
+    model: 'Model', testAi: 'Testuj AI', removeKey: 'Usuń klucz', mailboxes: 'Skrzynki e-mail', newMailbox: 'Nowa skrzynka',
+    imap: 'Odbiór (IMAP)', smtp: 'Wysyłka (SMTP)', host: 'Serwer', port: 'Port', encryption: 'Szyfrowanie', username: 'Użytkownik',
+    folder: 'Folder', fromAddress: 'Nadawca (e-mail)', fromName: 'Nadawca (nazwa)', dedicated: 'Tylko zgłoszenia',
+    dedicatedHint: 'Nie = AI rozpozna, co jest zgłoszeniem; pozostała poczta zostanie tylko zapisana.', autoReply: 'Wysyłaj potwierdzenie z numerem',
+    pwKeep: 'puste = bez zmian', testConn: 'Testuj połączenie', fetchNow: 'Pobierz teraz', lastCheck: 'Ostatnio',
+    connOk: 'OK', saveFirst: 'Najpierw zapisz.',
   },
 };
 
@@ -271,6 +297,8 @@ async function route() {
   if ((m = path.match(/^\/t\/(\d+)$/))) return renderTicket(m[1]);
   if (path === '/locations') return renderLocations(q);
   if (path === '/stock') return renderStock(q);
+  if (path === '/emails' && has('admin', 'dispecer')) return renderEmails(q);
+  if (path === '/settings' && isAdmin()) return renderSettings();
   if (path === '/users' && isAdmin()) return renderUsers();
   location.hash = '#/';
 }
@@ -281,6 +309,8 @@ function shell(active) {
     canCreate() ? ['new', '#/new', '➕', t('navNew')] : null,
     ['locations', '#/locations', '📍', t('navLocations')],
     has('admin', 'dispecer', 'ekonom', 'spolecnik') ? ['stock', '#/stock', '📦', t('navStock')] : null,
+    has('admin', 'dispecer') ? ['emails', '#/emails', '📧', t('navEmails')] : null,
+    isAdmin() ? ['settings', '#/settings', '⚙️', t('navSettings')] : null,
     isAdmin() ? ['users', '#/users', '👥', t('navUsers')] : null,
   ].filter(Boolean);
 
@@ -442,7 +472,7 @@ async function renderTickets(q) {
     return `
       <tr class="prio-${esc(tk.priority)}" data-id="${tk.id}">
         <td class="num">${esc(tk.number || '#' + tk.id)}</td>
-        <td><strong>${esc(tk.title)}</strong><div class="muted small">${esc(tk.project?.name || '')} · ${esc(t('stype.' + tk.service_type))}</div></td>
+        <td><strong>${esc(tk.title)}</strong><div class="muted small">${tk.source === 'email' ? '📧 ' : ''}${esc(tk.project?.name || '')} · ${esc(t('stype.' + tk.service_type))}${tk.needs_review ? ` <span class="chip waiting">⚠ ${esc(t('reviewBadge'))}</span>` : ''}</div></td>
         <td>${tk.location ? `${esc(tk.location.code)} · ${esc(tk.location.name)}<div class="muted small">${esc(tk.location.city || '')}</div>` : '<span class="muted">—</span>'}</td>
         <td>${tk.technician ? esc(tk.technician.name) : '<span class="muted">—</span>'}</td>
         <td>${chip(tk.status, t('status.' + tk.status))}</td>
@@ -704,6 +734,10 @@ async function renderTicket(id) {
       ${chip(tk.status, t('status.' + tk.status))}
     </div>
     ${!manage ? `<div class="banner warn">${esc(t('readOnly'))}</div>` : ''}
+    ${tk.needs_review ? `<div class="banner warn"><strong>⚠ ${esc(t('needsReview'))}</strong>
+      ${tk.email?.ai?.reason ? `<div class="small" style="margin-top:4px">${esc(t('aiSays'))}: ${esc(tk.email.ai.reason)}</div>` : ''}
+      ${(tk.email?.ai?.candidates || []).length ? `<div class="btn-row" style="margin-top:8px">${tk.email.ai.candidates.map((c) => `<button class="btn sm" data-useloc="${c.id}">${esc(c.code)} · ${esc(c.name)}${c.city ? ', ' + esc(c.city) : ''} <span class="muted">(${Math.round(c.score * 100)} %)</span></button>`).join('')}</div>` : `<div class="small" style="margin-top:4px">${esc(t('noCandidates'))}</div>`}
+    </div>` : ''}
     <div class="grid-2">
       <div>
         <div class="card">
@@ -736,6 +770,11 @@ async function renderTicket(id) {
           ${manage && tk.status === 'cancelled' ? `<button class="btn" data-st="new">▶ ${esc(t('reopen'))}</button>` : ''}
         </div>
 
+        ${tk.email ? `<div class="card"><h2>📧 ${esc(t('emailCard'))}</h2>
+          <dl class="kv"><dt>${esc(t('from_'))}</dt><dd>${esc(tk.email.from)}</dd><dt>${esc(t('subject'))}</dt><dd>${esc(tk.email.subject || '—')}</dd>
+          <dt>${esc(t('received'))}</dt><dd>${esc(fmt(tk.email.received_at))}</dd></dl>
+          <div class="small ${tk.email.confirmation_sent_at ? '' : 'muted'}" style="margin-top:8px">${tk.email.confirmation_sent_at ? '✓ ' + esc(t('confirmSent')) + ' · ' + esc(fmt(tk.email.confirmation_sent_at)) : esc(t('confirmNotSent'))}</div>
+          <a class="small" href="#/emails?open=${tk.email.id}">${esc(t('navEmails'))} →</a></div>` : ''}
         ${history ? `<div class="card"><h2>${esc(t('history'))}</h2><div class="history">${history}</div></div>` : ''}
       </div>
       <div>
@@ -743,6 +782,12 @@ async function renderTicket(id) {
         <div class="card"><h2>${esc(t('visits'))}</h2>${visitsHtml || `<div class="muted">${esc(t('noVisits'))}</div>`}</div>
       </div>
     </div>`;
+
+  el.querySelectorAll('[data-useloc]').forEach((b) => {
+    b.onclick = async () => {
+      try { await api('PATCH', `/tickets/${id}`, { location_id: Number(b.dataset.useloc) }); toast(t('saved')); renderTicket(id); } catch (e) { toast(errText(e), true); }
+    };
+  });
 
   // fotky
   el.querySelectorAll('img[data-att]').forEach((img) => {
@@ -1239,6 +1284,195 @@ async function partForm(p, prj) {
     };
   });
   if (ok) { partsCache = null; toast(t('saved')); route(); }
+}
+
+
+// ================================================================ e-maily a nastavení
+
+const EMAIL_TABS = { todo: 'review,error,ignored,new', all: '' };
+
+async function renderEmails(q) {
+  const el = shell('emails');
+  const tab = q.get('tab') || 'todo';
+  let res;
+  try {
+    res = await api('GET', '/emails?per_page=100' + (EMAIL_TABS[tab] ? '&status=' + EMAIL_TABS[tab] : ''));
+  } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+
+  const stCls = { new: 'assigned', ticket: 'completed', appended: 'closed', review: 'waiting', ignored: 'closed', error: 'cancelled' };
+  el.innerHTML = `
+    <div class="page-head"><h1>📧 ${esc(t('navEmails'))}</h1></div>
+    <div class="tabs">${Object.keys(EMAIL_TABS).map((k) => `<button class="tab ${k === tab ? 'on' : ''}" data-tab="${k}">${esc(t('etab.' + k))}</button>`).join('')}</div>
+    ${res.data.length ? `<div class="table-wrap"><table>
+      <thead><tr><th>${esc(t('received'))}</th><th>${esc(t('from_'))}</th><th>${esc(t('subject'))}</th><th>${esc(t('col.status'))}</th><th>${esc(t('ticketCol'))}</th></tr></thead>
+      <tbody>${res.data.map((m, i) => `<tr data-i="${i}">
+        <td class="small">${esc(fmt(m.received_at))}<div class="muted">${esc(m.mailbox?.name || '')}</div></td>
+        <td>${esc(m.from_name || '')}<div class="muted small">${esc(m.from_email || '')}</div></td>
+        <td><strong>${esc(m.subject || '—')}</strong>${m.attachments_count ? ` <span class="muted small">📎 ${m.attachments_count}</span>` : ''}
+          ${m.ai?.summary ? `<div class="muted small">${esc(m.ai.summary)}</div>` : ''}${m.error ? `<div class="small" style="color:var(--bad)">${esc(m.error)}</div>` : ''}</td>
+        <td>${chip(stCls[m.status] || '', t('est.' + m.status))}</td>
+        <td>${m.ticket ? `<a href="#/t/${m.ticket.id}">${esc(m.ticket.number)}</a>` : '—'}</td></tr>`).join('')}</tbody>
+    </table></div>` : `<div class="card empty">${esc(t('noEmails'))}</div>`}`;
+
+  el.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { location.hash = '#/emails?tab=' + b.dataset.tab; }; });
+  el.querySelectorAll('tr[data-i]').forEach((tr) => { tr.onclick = () => openEmail(res.data[Number(tr.dataset.i)].id); });
+  if (q.get('open')) openEmail(q.get('open'));
+}
+
+async function openEmail(id) {
+  let m;
+  try { m = (await api('GET', '/emails/' + id)).data; } catch (e) { toast(errText(e), true); return; }
+  const res = await modal(`
+    <h3>${esc(m.subject || '—')}</h3>
+    <dl class="kv">
+      <dt>${esc(t('from_'))}</dt><dd>${esc(m.from_name || '')} &lt;${esc(m.from_email || '')}&gt;</dd>
+      <dt>${esc(t('received'))}</dt><dd>${esc(fmt(m.received_at))} · ${esc(m.mailbox?.name || '')}</dd>
+      <dt>${esc(t('col.status'))}</dt><dd>${esc(t('est.' + m.status))}${m.ticket ? ` · <a href="#/t/${m.ticket.id}" data-close>${esc(m.ticket.number)}</a>` : ''}</dd>
+      ${m.attachments?.length ? `<dt>${esc(t('attachments'))}</dt><dd>${m.attachments.map((a) => esc(a.name)).join(', ')}</dd>` : ''}
+      ${m.ai ? `<dt>${esc(t('aiSays'))}</dt><dd class="small">${esc(m.ai.engine === 'claude' ? 'Claude' : 'heuristika')}${m.ai.reason ? ' – ' + esc(m.ai.reason) : ''}</dd>` : ''}
+    </dl>
+    ${m.error ? `<div class="banner err small" style="margin-top:10px">${esc(m.error)}</div>` : ''}
+    <div class="card desc small" style="margin-top:12px;max-height:40vh;overflow:auto">${esc(m.body_text || '')}</div>
+    <div class="modal-foot">
+      ${!m.ticket ? `<button class="btn" data-act="ignore">${esc(t('ignore'))}</button><button class="btn primary" data-act="reprocess">${esc(t('makeTicket'))}</button>` : ''}
+      <button class="btn" data-close>${esc(t('close'))}</button>
+    </div>`, (d, close) => {
+    d.querySelectorAll('[data-act]').forEach((b) => {
+      b.onclick = async () => {
+        try {
+          const r = await api('POST', `/emails/${id}/action`, { action: b.dataset.act });
+          close(r.data);
+        } catch (e) { toast(errText(e), true); }
+      };
+    });
+  });
+  if (res?.ticket) { location.hash = '#/t/' + res.ticket.id; return; }
+  if (res) route();
+}
+
+async function renderSettings() {
+  const el = shell('settings');
+  let ai, mbs, prj;
+  try {
+    [ai, mbs, prj] = await Promise.all([api('GET', '/admin/ai'), api('GET', '/admin/mailboxes').then((r) => r.data), projects()]);
+  } catch (e) { el.innerHTML = `<div class="banner err">${esc(errText(e))}</div>`; return; }
+
+  el.innerHTML = `
+    <div class="page-head"><h1>⚙️ ${esc(t('navSettings'))}</h1></div>
+    <div class="card" style="max-width:860px">
+      <h2>🤖 ${esc(t('aiTitle'))}</h2>
+      <p class="small">${esc(t('apiKey'))}: <strong>${ai.has_key ? esc(t('apiKeySet')) + ' (' + esc(ai.key_hint) + ')' : esc(t('apiKeyNone'))}</strong></p>
+      <div class="form-grid">
+        <label class="f"><span>${esc(t('apiKey'))}</span><input type="password" id="ai-key" placeholder="sk-ant-…" autocomplete="off"></label>
+        <label class="f"><span>${esc(t('model'))}</span><input type="text" id="ai-model" value="${esc(ai.model)}"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="ai-save">${esc(t('save'))}</button>
+        ${ai.has_key ? `<button class="btn" id="ai-test">${esc(t('testAi'))}</button><button class="btn danger" id="ai-remove">${esc(t('removeKey'))}</button>` : ''}
+      </div>
+      <div class="small" id="ai-out" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card" style="max-width:860px">
+      <h2>📧 ${esc(t('mailboxes'))}<span class="sp"></span><button class="btn sm primary" id="mb-add">➕ ${esc(t('newMailbox'))}</button></h2>
+      ${mbs.length ? mbs.map((m, i) => `
+        <div class="visit" data-mb="${i}" style="cursor:pointer">
+          <div class="visit-head"><strong>${esc(m.name)}</strong>${m.is_active ? '' : chip('off', t('inactive'))}<span class="muted small">${esc(m.project?.name || '')}</span></div>
+          <div class="small muted">${esc(m.imap_username)} @ ${esc(m.imap_host)} · ${esc(t('lastCheck'))}: ${esc(fmt(m.last_checked_at))} · ${m.emails_count} ✉</div>
+          ${m.last_error ? `<div class="small" style="color:var(--bad);margin-top:4px">${esc(m.last_error)}</div>` : ''}
+        </div>`).join('') : '<p class="muted">—</p>'}
+    </div>`;
+
+  const out = el.querySelector('#ai-out');
+  el.querySelector('#ai-save').onclick = async () => {
+    try {
+      await api('PUT', '/admin/ai', { api_key: el.querySelector('#ai-key').value.trim() || null, model: el.querySelector('#ai-model').value.trim() || null });
+      toast(t('saved')); renderSettings();
+    } catch (e) { toast(errText(e), true); }
+  };
+  el.querySelector('#ai-test')?.addEventListener('click', async () => {
+    out.textContent = '…';
+    try { const r = await api('POST', '/admin/ai/test'); out.innerHTML = r.ok ? `✅ ${esc(r.reply)}` : `<span style="color:var(--bad)">❌ ${esc(r.error)}</span>`; } catch (e) { out.textContent = errText(e); }
+  });
+  el.querySelector('#ai-remove')?.addEventListener('click', async () => {
+    if (!(await confirmModal(t('removeKey') + '?'))) return;
+    await api('PUT', '/admin/ai', { remove_key: true }); renderSettings();
+  });
+  el.querySelector('#mb-add').onclick = () => mailboxForm(null, prj);
+  el.querySelectorAll('[data-mb]').forEach((d) => { d.onclick = () => mailboxForm(mbs[Number(d.dataset.mb)], prj); });
+}
+
+async function mailboxForm(m, prj) {
+  const cur = m || { imap_port: 993, imap_encryption: 'ssl', imap_folder: 'INBOX', smtp_port: 465, smtp_encryption: 'ssl', dedicated: true, auto_reply: true, is_active: true };
+  const enc = (name, val) => `<select name="${name}">${['ssl', 'tls', 'none'].map((e) => `<option ${e === val ? 'selected' : ''}>${e}</option>`).join('')}</select>`;
+  const yn = (name, val) => `<select name="${name}"><option value="1" ${val ? 'selected' : ''}>${esc(t('yes'))}</option><option value="0" ${val ? '' : 'selected'}>${esc(t('no'))}</option></select>`;
+  await modal(`
+    <h3>${esc(m ? m.name : t('newMailbox'))}</h3>
+    <form id="mbf">
+      <div class="form-grid">
+        <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(cur.name || '')}"></label>
+        <label class="f"><span class="req">${esc(t('project'))}</span><select name="project_id">${prj.map((p) => `<option value="${p.id}" ${p.id === cur.project_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <div class="f full"><strong>${esc(t('imap'))}</strong></div>
+        <label class="f"><span class="req">${esc(t('host'))}</span><input type="text" name="imap_host" required value="${esc(cur.imap_host || '')}" placeholder="imap.webglobe.cz"></label>
+        <div class="form-grid" style="gap:0 8px"><label class="f"><span>${esc(t('port'))}</span><input type="number" name="imap_port" value="${cur.imap_port || 993}"></label><label class="f"><span>${esc(t('encryption'))}</span>${enc('imap_encryption', cur.imap_encryption)}</label></div>
+        <label class="f"><span class="req">${esc(t('username'))}</span><input type="text" name="imap_username" required value="${esc(cur.imap_username || '')}" autocomplete="off"></label>
+        <label class="f"><span class="${m ? '' : 'req'}">${esc(t('password'))}${m ? ` <span class="muted">(${esc(t('pwKeep'))})</span>` : ''}</span><input type="password" name="imap_password" ${m ? '' : 'required'} autocomplete="new-password"></label>
+        <label class="f"><span>${esc(t('folder'))}</span><input type="text" name="imap_folder" value="${esc(cur.imap_folder || 'INBOX')}"></label>
+        <label class="f"><span>${esc(t('dedicated'))}</span>${yn('dedicated', cur.dedicated)}<span class="muted small">${esc(t('dedicatedHint'))}</span></label>
+        <div class="f full"><strong>${esc(t('smtp'))}</strong></div>
+        <label class="f"><span>${esc(t('host'))}</span><input type="text" name="smtp_host" value="${esc(cur.smtp_host || '')}" placeholder="smtp.webglobe.cz"></label>
+        <div class="form-grid" style="gap:0 8px"><label class="f"><span>${esc(t('port'))}</span><input type="number" name="smtp_port" value="${cur.smtp_port || 465}"></label><label class="f"><span>${esc(t('encryption'))}</span>${enc('smtp_encryption', cur.smtp_encryption)}</label></div>
+        <label class="f"><span>${esc(t('username'))}</span><input type="text" name="smtp_username" value="${esc(cur.smtp_username || '')}" autocomplete="off"></label>
+        <label class="f"><span>${esc(t('password'))}${m ? ` <span class="muted">(${esc(t('pwKeep'))})</span>` : ''}</span><input type="password" name="smtp_password" autocomplete="new-password"></label>
+        <label class="f"><span>${esc(t('fromAddress'))}</span><input type="email" name="from_address" value="${esc(cur.from_address || '')}"></label>
+        <label class="f"><span>${esc(t('fromName'))}</span><input type="text" name="from_name" value="${esc(cur.from_name || 'PAP Service')}"></label>
+        <label class="f"><span>${esc(t('autoReply'))}</span>${yn('auto_reply', cur.auto_reply)}</label>
+        <label class="f"><span>${esc(t('active'))}</span>${yn('is_active', cur.is_active)}</label>
+      </div>
+      <div class="small" id="mb-out"></div>
+      <div class="banner err" id="mberr" hidden></div>
+      <div class="modal-foot">
+        ${m ? `<button type="button" class="btn" id="mb-test">${esc(t('testConn'))}</button><button type="button" class="btn" id="mb-fetch">${esc(t('fetchNow'))}</button>` : ''}
+        <button type="button" class="btn" data-close>${esc(t('close'))}</button><button class="btn primary">${esc(t('save'))}</button>
+      </div>
+    </form>`, (d, close) => {
+    const f = d.querySelector('#mbf');
+    const out = d.querySelector('#mb-out');
+    const body = () => {
+      const n = (v) => (v ? Number(v) : null);
+      const b = {
+        name: f.name.value.trim(), project_id: Number(f.project_id.value),
+        imap_host: f.imap_host.value.trim(), imap_port: n(f.imap_port.value), imap_encryption: f.imap_encryption.value,
+        imap_username: f.imap_username.value.trim(), imap_folder: f.imap_folder.value.trim() || 'INBOX',
+        smtp_host: f.smtp_host.value.trim() || null, smtp_port: n(f.smtp_port.value), smtp_encryption: f.smtp_encryption.value,
+        smtp_username: f.smtp_username.value.trim() || null, from_address: f.from_address.value.trim() || null,
+        from_name: f.from_name.value.trim() || null, dedicated: f.dedicated.value === '1', auto_reply: f.auto_reply.value === '1',
+        is_active: f.is_active.value === '1',
+      };
+      if (f.imap_password.value) b.imap_password = f.imap_password.value;
+      if (f.smtp_password.value) b.smtp_password = f.smtp_password.value;
+      return b;
+    };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        if (m) await api('PATCH', `/admin/mailboxes/${m.id}`, body()); else await api('POST', '/admin/mailboxes', body());
+        close(true); toast(t('saved')); renderSettings();
+      } catch (ex) { const err = d.querySelector('#mberr'); err.textContent = errText(ex); err.hidden = false; }
+    };
+    d.querySelector('#mb-test')?.addEventListener('click', async () => {
+      out.textContent = '…';
+      try {
+        const r = await api('POST', `/admin/mailboxes/${m.id}/test`);
+        const line = (label, x) => (x ? `${label}: ${x.ok ? '✅ ' + esc(t('connOk')) + (x.messages != null ? ` (${x.messages} ✉)` : '') : '❌ ' + esc(x.error)}` : '');
+        out.innerHTML = [line('IMAP', r.imap), line('SMTP', r.smtp)].filter(Boolean).join('<br>');
+      } catch (ex) { out.textContent = errText(ex); }
+    });
+    d.querySelector('#mb-fetch')?.addEventListener('click', async () => {
+      out.textContent = '…';
+      try { const r = await api('POST', `/admin/mailboxes/${m.id}/fetch`); out.innerHTML = r.ok ? `✅ +${r.new} ✉` : `❌ ${esc(r.error)}`; } catch (ex) { out.textContent = errText(ex); }
+    });
+  });
 }
 
 // ================================================================ start

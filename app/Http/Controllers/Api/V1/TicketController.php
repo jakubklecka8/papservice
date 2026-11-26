@@ -51,6 +51,9 @@ class TicketController extends Controller
         if (! empty($data['technician_id'])) {
             $query->where('assigned_technician_id', $data['technician_id']);
         }
+        if ($request->boolean('needs_review')) {
+            $query->where('needs_review', true);
+        }
         if (! empty($data['mine'])) {
             $query->where('assigned_technician_id', $user->id);
         }
@@ -154,7 +157,7 @@ class TicketController extends Controller
         $ticket->load([
             'project', 'location', 'technician', 'attachments', 'protocols.visit',
             'visits' => fn ($q) => $q->orderBy('id'),
-            'visits.technician', 'visits.parts.part', 'visits.attachments', 'history.user',
+            'visits.technician', 'visits.parts.part', 'visits.attachments', 'history.user', 'sourceEmail',
         ]);
 
         return new TicketResource($ticket);
@@ -181,6 +184,7 @@ class TicketController extends Controller
             $location = Location::findOrFail($data['location_id']);
             abort_unless($location->project_id === $ticket->project_id, 422, 'Provozovna nepatří do projektu zakázky.');
             $data['end_customer_id'] = $location->end_customer_id;
+            $data['needs_review'] = false; // provozovna z e-mailu ověřena
         }
 
         $ticket->update($data);
