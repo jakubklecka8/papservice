@@ -23,7 +23,7 @@ class Ticket extends Model
         'title', 'description', 'created_by', 'reporter_name', 'reporter_email', 'reporter_phone',
         'assigned_technician_id', 'assigned_by', 'assigned_at', 'due_at', 'closed_at', 'client_report_sent_at', 'client_report_by', 'legacy_id', 'legacy_status',
         'price_currency', 'price_base', 'price_km_rate', 'price_extra', 'price_total', 'price_note', 'price_locked_at',
-        'device_id', 'schedule_id', 'checklist_template_id', 'planned_at',
+        'device_id', 'schedule_id', 'checklist_template_id', 'planned_at', 'ai_advice', 'ai_advice_at',
     ];
 
     protected function casts(): array
@@ -37,6 +37,8 @@ class Ticket extends Model
             'client_report_sent_at' => 'datetime',
             'price_locked_at' => 'datetime',
             'planned_at' => 'datetime',
+            'ai_advice' => 'array',
+            'ai_advice_at' => 'datetime',
         ];
     }
 

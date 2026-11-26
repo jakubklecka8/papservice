@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\Role;
 use App\Enums\ServiceType;
 use App\Enums\TicketStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TicketResource;
+use App\Models\ChecklistTemplate;
+use App\Models\Device;
 use App\Models\Location;
 use App\Models\Ticket;
 use App\Models\User;
-use App\Services\TicketAssigner;
 use App\Services\Mail\ClientReportMailer;
 use App\Services\TechnicianNotifier;
+use App\Services\TicketAdvisor;
+use App\Services\TicketAssigner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -184,10 +186,10 @@ class TicketController extends Controller
             $data['due_at'] = Carbon::parse($data['due_at'])->utc();
         }
         if (! empty($data['device_id'])) {
-            abort_unless(\App\Models\Device::whereKey($data['device_id'])->value('project_id') === $ticket->project_id, 422, 'Zařízení nepatří do projektu zakázky.');
+            abort_unless(Device::whereKey($data['device_id'])->value('project_id') === $ticket->project_id, 422, 'Zařízení nepatří do projektu zakázky.');
         }
         if (! empty($data['checklist_template_id'])) {
-            abort_unless(\App\Models\ChecklistTemplate::whereKey($data['checklist_template_id'])->value('project_id') === $ticket->project_id, 422, 'Kontrolní seznam nepatří do projektu zakázky.');
+            abort_unless(ChecklistTemplate::whereKey($data['checklist_template_id'])->value('project_id') === $ticket->project_id, 422, 'Kontrolní seznam nepatří do projektu zakázky.');
         }
 
         if (array_key_exists('location_id', $data) && $data['location_id']) {
@@ -200,6 +202,33 @@ class TicketController extends Controller
         $ticket->update($data);
 
         return new TicketResource($ticket->load(['project', 'location', 'technician']));
+    }
+
+    /** Uložené doporučení AI k závadě */
+    public function advice(Request $request, Ticket $ticket): JsonResponse
+    {
+        $this->authorizeAdvice($request, $ticket);
+
+        return response()->json(['data' => $ticket->ai_advice, 'at' => $ticket->ai_advice_at?->toIso8601String(),
+            'available' => app(TicketAdvisor::class)->available()]);
+    }
+
+    /** Nechat AI projít závadu (popis, zařízení, historie, podobné zakázky, návody) */
+    public function generateAdvice(Request $request, Ticket $ticket): JsonResponse
+    {
+        $this->authorizeAdvice($request, $ticket);
+        @set_time_limit(90);
+        $lang = $request->user()->locale === 'pl' ? 'pl' : 'cs';
+        $advice = app(TicketAdvisor::class)->advise($ticket, $lang);
+
+        return response()->json(['data' => $advice, 'at' => now()->toIso8601String(), 'available' => true]);
+    }
+
+    private function authorizeAdvice(Request $request, Ticket $ticket): void
+    {
+        $user = $request->user();
+        $this->authorize('view', $ticket);
+        abort_if($user->isCustomerOnly(), 403);
     }
 
     /** Přidělení technikovi dispečerem */

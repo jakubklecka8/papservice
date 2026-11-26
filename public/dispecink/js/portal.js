@@ -290,6 +290,23 @@ function stepsHtml(steps) {
   return `<ol class="instr-steps">${(steps || []).map((st) => `<li><div>${esc(st.text)}</div>${(st.outcomes || []).length ? `<ul>${st.outcomes.map((o) => `<li><strong>${esc(o.if)}</strong> → ${esc(o.then)}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ol>`;
 }
 
+// ---- AI doporučení k závadě
+Object.assign(T.cs, { aiAdvice: 'Doporučení AI', aiRun: '🤖 Vyhodnotit závadu', aiRerun: '↻ Znovu', aiWorking: 'AI prochází závadu, historii a návody…', aiCauses: 'Pravděpodobné příčiny', aiSteps: 'Postup', aiParts: 'Díly s sebou', aiInstr: 'Návody', aiSimilar: 'Podobné zakázky', aiQuestions: 'Zeptat se zákazníka', aiLik: { high: 'vysoká', medium: 'střední', low: 'nízká' }, aiBased: { instructions: 'podle návodů', history: 'podle historie', general: 'obecné znalosti', mixed: 'návody + historie' }, aiStats: 'podklady: {h} zakázek na provozovně, {s} podobných, {i} návodů', aiHint: 'AI projde popis, zařízení, historii provozovny, podobné vyřešené zakázky a návody a navrhne postup.' });
+Object.assign(T.pl, { aiAdvice: 'Rekomendacja AI', aiRun: '🤖 Oceń usterkę', aiRerun: '↻ Ponownie', aiWorking: 'AI analizuje usterkę, historię i instrukcje…', aiCauses: 'Prawdopodobne przyczyny', aiSteps: 'Procedura', aiParts: 'Części do zabrania', aiInstr: 'Instrukcje', aiSimilar: 'Podobne zlecenia', aiQuestions: 'Zapytać klienta', aiLik: { high: 'wysokie', medium: 'średnie', low: 'niskie' }, aiBased: { instructions: 'wg instrukcji', history: 'wg historii', general: 'wiedza ogólna', mixed: 'instrukcje + historia' }, aiStats: 'dane: {h} zleceń w lokalizacji, {s} podobnych, {i} instrukcji', aiHint: 'AI przeanalizuje opis, urządzenie, historię lokalizacji, podobne zlecenia i instrukcje oraz zaproponuje procedurę.' });
+function adviceHtml(a) {
+  if (!a) return `<p class="muted small" style="margin:0">${esc(t('aiHint'))}</p>`;
+  return `
+    <p style="margin-top:0"><strong>${esc(a.summary)}</strong></p>
+    ${a.repeat_warning ? `<div class="banner warn small">🔁 ${esc(a.repeat_warning)}</div>` : ''}
+    ${a.causes?.length ? `<div class="ai-h">${esc(t('aiCauses'))}</div><ul class="ai-list">${a.causes.map((c) => `<li><span class="lik ${esc(c.likelihood)}">${esc(t('aiLik.' + c.likelihood))}</span> ${esc(c.cause)}${c.why ? `<div class="muted small">${esc(c.why)}</div>` : ''}</li>`).join('')}</ul>` : ''}
+    ${a.steps?.length ? `<div class="ai-h">${esc(t('aiSteps'))}</div><ol class="ai-list">${a.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+    ${a.parts?.length ? `<div class="ai-h">${esc(t('aiParts'))}</div><ul class="ai-list">${a.parts.map((p) => `<li>${esc(p.name)}${p.part_number ? ` <span class="muted">(${esc(p.part_number)})</span>` : ''}${p.why ? ` – <span class="muted small">${esc(p.why)}</span>` : ''}</li>`).join('')}</ul>` : ''}
+    ${a.instructions?.length ? `<div class="ai-h">${esc(t('aiInstr'))}</div><div>${a.instructions.map((i) => `<a class="chip" href="#/instructions/${i.id}">📘 ${esc(i.title)} v${i.version || ''}</a>`).join(' ')}</div>` : ''}
+    ${a.similar?.length ? `<div class="ai-h">${esc(t('aiSimilar'))}</div><div>${a.similar.map((x) => `<a class="chip" href="#/t/${x.id}">${esc(x.number)}</a>`).join(' ')}</div>` : ''}
+    ${a.questions?.length ? `<div class="ai-h">${esc(t('aiQuestions'))}</div><ul class="ai-list">${a.questions.map((q) => `<li>${esc(q)}</li>`).join('')}</ul>` : ''}
+    <div class="muted small" style="margin-top:8px">${esc(t('aiBased.' + (a.based_on || 'mixed')))} · ${Math.round((a.confidence || 0) * 100)} % · ${esc(t('aiStats').replace('{h}', a.stats?.history ?? 0).replace('{s}', a.stats?.similar ?? 0).replace('{i}', a.stats?.instructions ?? 0))}${a.at ? ' · ' + esc(fmt(a.at)) : ''}</div>`;
+}
+
 const t = (k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), T[lang]) ?? k;
 
 // ================================================================ API
@@ -977,6 +994,8 @@ async function renderTicket(id) {
         ${history ? `<div class="card"><h2>${esc(t('history'))}</h2><div class="history">${history}</div></div>` : ''}
       </div>
       <div>
+        ${open || tk.ai_advice ? `<div class="card ai-card"><h2>🤖 ${esc(t('aiAdvice'))}<span class="sp"></span>${open ? `<button class="btn sm ${tk.ai_advice ? '' : 'primary'}" id="btn-ai">${esc(tk.ai_advice ? t('aiRerun') : t('aiRun'))}</button>` : ''}</h2>
+          <div id="ai-body">${adviceHtml(tk.ai_advice)}</div></div>` : ''}
         ${tk.price ? priceCard(tk.price, manage) : ''}
         ${protocols ? `<div class="card"><h2>${esc(t('protocols'))}</h2>${protocols}</div>` : ''}
         <div class="card"><h2>${esc(t('visits'))}</h2>${visitsHtml || `<div class="muted">${esc(t('noVisits'))}</div>`}</div>
@@ -985,6 +1004,17 @@ async function renderTicket(id) {
 
   el.querySelector('#btn-report')?.addEventListener('click', () => clientReport(id));
   el.querySelector('#btn-price')?.addEventListener('click', () => editPrice(tk));
+  el.querySelector('#btn-ai')?.addEventListener('click', async (e) => {
+    const b = e.target; const body = el.querySelector('#ai-body');
+    b.disabled = true;
+    body.innerHTML = `<div class="ai-working"><div class="spinner" style="margin:0"></div>${esc(t('aiWorking'))}</div>`;
+    try {
+      const r = await api('POST', `/tickets/${tk.id}/advice`);
+      body.innerHTML = adviceHtml({ ...r.data, at: r.at });
+      b.textContent = t('aiRerun'); b.classList.remove('primary');
+    } catch (ex) { body.innerHTML = `<div class="banner err small">${esc(errText(ex))}</div>` + (tk.ai_advice ? adviceHtml(tk.ai_advice) : ''); }
+    b.disabled = false;
+  });
   el.querySelector('#btn-plan')?.addEventListener('click', async () => {
     if (await planModal({ id: tk.id, number: tk.number, title: tk.title, project_id: tk.project?.id, technician_id: tk.technician?.id, planned_at: tk.planned_at })) renderTicket(tk.id);
   });

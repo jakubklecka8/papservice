@@ -13,7 +13,7 @@ import {
   esc, fmtDate, toLocalInput, fromLocalInput, uuid, toast, chip, sheet, confirmSheet, promptSheet, debounce,
 } from './ui.js';
 
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 const $app = document.getElementById('app');
 const state = { me: null, leaveHandlers: [] };
 const imageUrls = new Map(); // uuid přílohy → objectURL
@@ -399,6 +399,10 @@ async function renderDetail(id) {
       </div>
     </div>` : ''}
 
+    ${!['closed', 'cancelled'].includes(status) || ticket.ai_advice ? `<div class="card ai-card">
+      <div class="ai-top"><strong>🤖 ${esc(t('aiAdvice'))}</strong>${['closed', 'cancelled'].includes(status) ? '' : `<button class="btn small ${ticket.ai_advice ? '' : 'primary'}" id="btn-ai">${esc(ticket.ai_advice ? t('aiRerun') : t('aiRun'))}</button>`}</div>
+      <div id="ai-body">${adviceHtml(ticket.ai_advice)}</div></div>` : ''}
+
     <div class="actions">
       ${visitBtn}
       ${canToggleWait ? (status === 'waiting'
@@ -407,6 +411,23 @@ async function renderDetail(id) {
     </div>
 
     ${history ? `<div class="section-title">${esc(t('history'))}</div><div class="card history">${history}</div>` : ''}`;
+
+  document.getElementById('btn-ai')?.addEventListener('click', async (e) => {
+    const b = e.target; const body = document.getElementById('ai-body');
+    b.disabled = true;
+    body.innerHTML = `<div class="ai-working"><div class="spinner" style="margin:0;width:22px;height:22px"></div>${esc(t('aiWorking'))}</div>`;
+    try {
+      const r = await api.advice(id);
+      body.innerHTML = adviceHtml({ ...r.data, at: r.at });
+      b.textContent = t('aiRerun'); b.classList.remove('primary');
+      // uložit do cache zakázky, ať je doporučení i offline
+      const c = await kv.get('ticket:' + id);
+      if (c) { c.ai_advice = { ...r.data, at: r.at }; await kv.set('ticket:' + id, c); }
+    } catch (ex) {
+      body.innerHTML = `<div class="banner warn small" style="margin:8px 0 0">${esc(ex instanceof NetworkError ? t('offline') : ex.message)}</div>` + (ticket.ai_advice ? adviceHtml(ticket.ai_advice) : '');
+    }
+    b.disabled = false;
+  });
 
   const sb = document.getElementById('btn-status');
   if (sb) {
@@ -1290,4 +1311,19 @@ async function pickInstruction(ticket) {
     dlg.querySelector('[data-no]').onclick = () => close(null);
     draw('');
   });
+}
+
+
+// ---------------------------------------------------------------- AI doporučení
+
+function adviceHtml(a) {
+  if (!a) return `<p class="muted small" style="margin:6px 0 0">${esc(t('aiHint'))}</p>`;
+  return `
+    <p style="margin:8px 0"><strong>${esc(a.summary)}</strong></p>
+    ${a.repeat_warning ? `<div class="banner warn small" style="margin:0 0 8px">🔁 ${esc(a.repeat_warning)}</div>` : ''}
+    ${a.steps?.length ? `<div class="ai-h">${esc(t('aiSteps'))}</div><ol class="ai-list">${a.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+    ${a.causes?.length ? `<div class="ai-h">${esc(t('aiCauses'))}</div><ul class="ai-list">${a.causes.map((c) => `<li><span class="lik ${esc(c.likelihood)}">${esc(t('aiLik_' + c.likelihood))}</span> ${esc(c.cause)}</li>`).join('')}</ul>` : ''}
+    ${a.parts?.length ? `<div class="ai-h">${esc(t('aiParts'))}</div><ul class="ai-list">${a.parts.map((p) => `<li>${esc(p.name)}${p.part_number ? ` <span class="muted">(${esc(p.part_number)})</span>` : ''}</li>`).join('')}</ul>` : ''}
+    ${a.instructions?.length ? `<div class="ai-h">${esc(t('instructions'))}</div>${a.instructions.map((i) => `<a class="btn small" style="margin:0 6px 6px 0" href="#/instructions/${i.id}">📘 ${esc(i.title)}</a>`).join('')}` : ''}
+    <div class="muted small" style="margin-top:6px">${Math.round((a.confidence || 0) * 100)} %${a.at ? ' · ' + esc(fmtDate(a.at)) : ''}</div>`;
 }

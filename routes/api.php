@@ -141,6 +141,8 @@ Route::prefix('v1')->group(function () {
         Route::patch('tickets/{ticket}', [TicketController::class, 'update']);
         Route::post('tickets/{ticket}/assign', [TicketController::class, 'assign']);
         Route::post('tickets/{ticket}/status', [TicketController::class, 'status']);
+        Route::get('tickets/{ticket}/advice', [TicketController::class, 'advice']);
+        Route::post('tickets/{ticket}/advice', [TicketController::class, 'generateAdvice']);
         Route::get('tickets/{ticket}/client-report', [TicketController::class, 'clientReportDraft']);
         Route::post('tickets/{ticket}/client-report', [TicketController::class, 'clientReportSend']);
 

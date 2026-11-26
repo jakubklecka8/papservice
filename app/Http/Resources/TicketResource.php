@@ -62,6 +62,7 @@ class TicketResource extends JsonResource
             ]),
             'due_at' => $this->due_at?->toIso8601String(),
             'planned_at' => $this->planned_at?->toIso8601String(),
+            'ai_advice' => $this->when(! $customerOnly && $this->ai_advice, fn () => $this->ai_advice + ['at' => $this->ai_advice_at?->toIso8601String()]),
             'device' => $this->when(! $customerOnly && $this->relationLoaded('device') && $this->device, fn () => [
                 'id' => $this->device->id, 'type' => $this->device->type, 'model' => $this->device->model,
                 'serial_number' => $this->device->serial_number, 'installed_at' => $this->device->installed_at?->toDateString(),

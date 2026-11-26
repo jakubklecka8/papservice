@@ -203,3 +203,14 @@ input[type=date] { -webkit-appearance: none; appearance: none; background: #fff;
 .pick-list { max-height: 55vh; overflow-y: auto; }
 .instr-picked { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #eef5fc; border: 1px solid #c8dcf0; border-radius: 10px; }
 .instr-picked a { flex: 1; font-weight: 600; color: var(--brand); text-decoration: none; }
+
+/* --- AI doporučení --- */
+.ai-card { border-color: #c7d2fe; background: linear-gradient(180deg, #f5f7ff, #fff 100px); }
+.ai-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ai-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 10px 0 4px; }
+.ai-list { margin: 0; padding-left: 20px; }
+.ai-list li { margin: 4px 0; }
+.lik { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #e5e7eb; color: #374151; }
+.lik.high { background: #fee2e2; color: #991b1b; }
+.lik.medium { background: #fef3c7; color: #92400e; }
+.ai-working { display: flex; align-items: center; gap: 12px; color: var(--muted); margin-top: 8px; }
