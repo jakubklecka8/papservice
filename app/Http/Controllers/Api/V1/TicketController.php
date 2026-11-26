@@ -62,7 +62,7 @@ class TicketController extends Controller
         }
         if (! empty($data['q'])) {
             $q = '%'.$data['q'].'%';
-            $query->where(fn ($w) => $w->where('number', 'like', $q)->orWhere('title', 'like', $q)
+            $query->where(fn ($w) => $w->where('number', 'like', $q)->orWhere('external_ref', 'like', $q)->orWhere('title', 'like', $q)
                 ->orWhereHas('location', fn ($l) => $l->where('name', 'like', $q)->orWhere('code', 'like', $q)->orWhere('city', 'like', $q)));
         }
 

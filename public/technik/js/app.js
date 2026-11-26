@@ -234,7 +234,7 @@ async function drawList(items, fromCache) {
     const loc = tk.location;
     return `
       <a class="card ticket prio-${esc(tk.priority)}" href="#/t/${tk.id}">
-        <div class="ticket-head"><span class="ticket-num">${esc(tk.number || '#' + tk.id)}</span>${chip(status)}</div>
+        <div class="ticket-head"><span class="ticket-num">${esc(tk.number || '#' + tk.id)}${tk.external_ref ? ' · ' + esc(tk.external_ref) : ''}</span>${chip(status)}</div>
         <div class="ticket-title">${esc(tk.title)}</div>
         <div class="ticket-loc">${loc ? esc(loc.code + ' · ' + loc.name) + '<br>' + esc([loc.street, loc.city].filter(Boolean).join(', ')) : ''}</div>
         <div class="ticket-meta">
@@ -354,7 +354,7 @@ async function renderDetail(id) {
     ${!fresh ? `<div class="banner warn">${esc(t('offlineCached'))}</div>` : ''}
     ${banner}
     <div class="card">
-      <div class="ticket-head"><span class="ticket-num">${esc(ticket.project?.name || '')} · ${esc(ticket.service_type)}</span>${chip(status)}</div>
+      <div class="ticket-head"><span class="ticket-num">${esc(ticket.project?.name || '')} · ${esc(ticket.service_type)}${ticket.external_ref ? ' · ' + esc(ticket.external_ref) : ''}</span>${chip(status)}</div>
       <div class="ticket-title" style="font-size:18px">${esc(ticket.title)}</div>
       ${ticket.description ? `<div class="desc" style="margin-top:6px">${esc(ticket.description)}</div>` : ''}
     </div>

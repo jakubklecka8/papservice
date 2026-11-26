@@ -14,7 +14,7 @@ class Location extends Model
     use HasFactory;
 
     protected $fillable = [
-        'project_id', 'end_customer_id', 'code', 'name', 'street', 'city', 'zip', 'country',
+        'project_id', 'end_customer_id', 'code', 'external_id', 'name', 'street', 'city', 'zip', 'country',
         'lat', 'lng', 'note', 'is_active', 'legacy_id',
     ];
 

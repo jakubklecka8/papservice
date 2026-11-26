@@ -12,6 +12,7 @@ use App\Services\Mail\EmailClassifier;
 use App\Services\Mail\InboundEmailProcessor;
 use App\Services\Mail\MailboxImporter;
 use App\Services\Mail\MailboxReader;
+use App\Services\Mail\RitmParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -110,6 +111,7 @@ class MailController extends Controller
         return $request->validate([
             'name' => [$req, 'string', 'max:255'],
             'project_id' => [$req, 'integer', 'exists:projects,id'],
+            'parser' => ['sometimes', Rule::in(['ai', 'zasilkovna_ritm'])],
             'imap_host' => [$req, 'string', 'max:255'],
             'imap_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'imap_encryption' => ['nullable', Rule::in(['ssl', 'tls', 'none'])],
@@ -132,7 +134,7 @@ class MailController extends Controller
     private function mbPayload(Mailbox $m): array
     {
         return $m->only([
-            'id', 'name', 'project_id', 'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_folder',
+            'id', 'name', 'project_id', 'parser', 'imap_host', 'imap_port', 'imap_encryption', 'imap_username', 'imap_folder',
             'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'from_address', 'from_name',
             'dedicated', 'auto_reply', 'is_active', 'last_checked_at', 'last_error',
         ]) + [
@@ -245,8 +247,13 @@ class MailController extends Controller
         } else {
             abort_if($email->ticket_id, 422, 'E-mail už má zakázku.');
             $email->update(['status' => 'new', 'error' => null]);
-            // ručně spuštěné zpracování: i u nevyhrazené schránky zakázku založit
+            // ručně spuštěné zpracování: i u nevyhrazené schránky zakázku založit;
+            // když nejde přečíst jako RITM, zkusit obecné zpracování (AI / heuristika)
             $email->mailbox->dedicated = true;
+            if ($email->mailbox->parser === 'zasilkovna_ritm' && $email->status === 'new' && $email->error === null
+                && app(RitmParser::class)->parse((string) $email->body_text) === null) {
+                $email->mailbox->parser = 'ai';
+            }
             app(InboundEmailProcessor::class)->process($email->setRelation('mailbox', $email->mailbox));
         }
 

@@ -45,6 +45,7 @@ class LocationController extends Controller
             'end_customer_id' => ['nullable', 'integer', 'exists:end_customers,id'],
             'code' => [$location ? 'sometimes' : 'required', 'string', 'max:64',
                 Rule::unique('locations')->where('project_id', $projectId)->ignore($location?->id)],
+            'external_id' => ['nullable', 'string', 'max:64'],
             'name' => [$location ? 'sometimes' : 'required', 'string', 'max:255'],
             'street' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:255'],

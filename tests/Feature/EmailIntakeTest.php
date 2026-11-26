@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\Role;
 use App\Models\Attachment;
 use App\Models\InboundEmail;
+use App\Models\Location;
 use App\Models\Mailbox;
 use App\Models\Setting;
 use App\Models\Ticket;
@@ -238,6 +239,68 @@ class EmailIntakeTest extends TestCase
         Sanctum::actingAs($this->dispecer);
         $this->postJson('/api/v1/emails/'.InboundEmail::sole()->id.'/action', ['action' => 'reprocess'])->assertOk();
         $this->assertSame(1, Ticket::count());
+    }
+
+    private function ritmBody(string $locker = 'CZ-OST1234', string $id = '98765'): string
+    {
+        return "Dobrý den,\n\nService type: Výměna zámku schránky\nLocker: {$locker} ID: {$id}\n"
+            ."Location: Ostrava, Nádražní 196, 702 00 (GPS: 49.8353 18.2928)\nPriority: 2 - High\n"
+            ."Description: Schránka č. 12 nejde otevřít.\nZákazník čeká.\n\nClick here to view the request";
+    }
+
+    public function test_ritm_email_creates_ticket_and_location_without_ai(): void
+    {
+        $this->mailbox->update(['parser' => 'zasilkovna_ritm', 'auto_reply' => false]);
+        $this->reader->messages[] = $this->msg(10, '<r1@packeta>', 'RITM0012345 - Service request', $this->ritmBody());
+        $this->runImport();
+
+        $ticket = Ticket::sole();
+        $this->assertSame('RITM0012345', $ticket->external_ref);
+        $this->assertSame('high', $ticket->priority);
+        $this->assertSame('Výměna zámku schránky – CZ-OST1234', $ticket->title);
+        $this->assertStringContainsString('Schránka č. 12 nejde otevřít', $ticket->description);
+        $this->assertFalse($ticket->needs_review);
+
+        $loc = Location::find($ticket->location_id);
+        $this->assertSame('CZ-OST1234', $loc->code);
+        $this->assertSame('98765', $loc->external_id);
+        $this->assertSame('Ostrava', $loc->city);
+        $this->assertSame('Nádražní 196', $loc->street);
+        $this->assertSame('702 00', $loc->zip);
+        $this->assertEqualsWithDelta(49.8353, $loc->lat, 0.0001);
+        $this->assertCount(0, $this->sent); // potvrzení vypnuté
+    }
+
+    public function test_same_ritm_twice_appends_and_existing_box_is_reused(): void
+    {
+        $this->mailbox->update(['parser' => 'zasilkovna_ritm']);
+        $this->locA->update(['external_id' => '98765']);
+
+        $this->reader->messages[] = $this->msg(10, '<r1@packeta>', 'RITM0012345 - Service request', $this->ritmBody('CZ-JINY', '98765'));
+        $this->reader->messages[] = $this->msg(11, '<r2@packeta>', 'RITM0012345 - Update', "Status changed to In progress\n\n".$this->ritmBody('CZ-JINY', '98765'));
+        $this->reader->messages[] = $this->msg(12, '<x@packeta>', 'Newsletter Packeta', 'Novinky…');
+        $this->runImport();
+
+        $ticket = Ticket::sole();
+        $this->assertSame($this->locA->id, $ticket->location_id); // box podle ID, nová provozovna nevznikla
+        $this->assertSame(3, Location::count());
+        $this->assertSame('appended', InboundEmail::where('uid', 11)->value('status'));
+        $this->assertSame('ignored', InboundEmail::where('uid', 12)->value('status'));
+    }
+
+    public function test_unreadable_ritm_is_error_and_can_be_forced_by_dispatcher(): void
+    {
+        $this->mailbox->update(['parser' => 'zasilkovna_ritm']);
+        $this->reader->messages[] = $this->msg(10, '<r1@packeta>', 'RITM0099999', 'Úplně jiný formát bez lockeru, box ZB-1234 nejde.');
+        $this->runImport();
+
+        $this->assertSame(0, Ticket::count());
+        $email = InboundEmail::sole();
+        $this->assertSame('error', $email->status);
+
+        Sanctum::actingAs($this->dispecer);
+        $this->postJson("/api/v1/emails/{$email->id}/action", ['action' => 'reprocess'])->assertOk()->assertJsonPath('data.status', 'ticket');
+        $this->assertSame($this->locA->id, Ticket::sole()->location_id); // obecné zpracování našlo kód ZB-1234
     }
 
     public function test_mailbox_admin_and_email_access(): void

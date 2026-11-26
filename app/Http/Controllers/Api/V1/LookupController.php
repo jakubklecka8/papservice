@@ -46,11 +46,11 @@ class LookupController extends Controller
         }
         if (! empty($data['q'])) {
             $q = '%'.$data['q'].'%';
-            $query->where(fn ($w) => $w->where('name', 'like', $q)->orWhere('code', 'like', $q)->orWhere('city', 'like', $q));
+            $query->where(fn ($w) => $w->where('name', 'like', $q)->orWhere('code', 'like', $q)->orWhere('external_id', 'like', $q)->orWhere('city', 'like', $q));
         }
 
         return response()->json($query->paginate($data['per_page'] ?? 50, [
-            'id', 'project_id', 'end_customer_id', 'code', 'name', 'street', 'city', 'zip', 'country', 'lat', 'lng', 'note', 'is_active',
+            'id', 'project_id', 'end_customer_id', 'code', 'external_id', 'name', 'street', 'city', 'zip', 'country', 'lat', 'lng', 'note', 'is_active',
         ]));
     }
 

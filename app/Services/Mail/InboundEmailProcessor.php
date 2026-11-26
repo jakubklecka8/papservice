@@ -7,6 +7,7 @@ use App\Jobs\SendTicketConfirmation;
 use App\Models\Attachment;
 use App\Models\EndCustomer;
 use App\Models\InboundEmail;
+use App\Models\Location;
 use App\Models\Ticket;
 use App\Models\TicketMessageId;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,7 @@ class InboundEmailProcessor
     public function __construct(
         private readonly EmailClassifier $classifier,
         private readonly LocationMatcher $matcher,
+        private readonly RitmParser $ritm,
     ) {}
 
     public function process(InboundEmail $email): void
@@ -41,22 +43,29 @@ class InboundEmailProcessor
                 return;
             }
 
-            $ai = $this->classifier->classify($email);
+            if ($email->mailbox->parser === 'zasilkovna_ritm') {
+                $ticket = $this->processRitm($email);
+                if ($ticket === null) {
+                    return; // ignorováno nebo připojeno k existující zakázce
+                }
+            } else {
+                $ai = $this->classifier->classify($email);
 
-            if (! $ai['is_request'] && ! $email->mailbox->dedicated) {
-                $email->update(['status' => 'ignored', 'ai_result' => $ai, 'processed_at' => now()]);
+                if (! $ai['is_request'] && ! $email->mailbox->dedicated) {
+                    $email->update(['status' => 'ignored', 'ai_result' => $ai, 'processed_at' => now()]);
 
-                return;
+                    return;
+                }
+
+                $match = $this->matcher->match(
+                    $email->mailbox->project_id,
+                    $email->subject."\n".$email->body_text,
+                    $ai['location_hints'] ?? [],
+                );
+                $ai['candidates'] = $match['candidates'];
+
+                $ticket = $this->createTicket($email, $ai, $match['location']);
             }
-
-            $match = $this->matcher->match(
-                $email->mailbox->project_id,
-                $email->subject."\n".$email->body_text,
-                $ai['location_hints'] ?? [],
-            );
-            $ai['candidates'] = $match['candidates'];
-
-            $ticket = $this->createTicket($email, $ai, $match['location']);
         } catch (Throwable $e) {
             report($e);
             $email->update(['status' => 'error', 'error' => Str::limit($e->getMessage(), 1000), 'processed_at' => now()]);
@@ -67,6 +76,101 @@ class InboundEmailProcessor
         if ($email->mailbox->auto_reply && $email->mailbox->canSend() && $email->from_email) {
             SendTicketConfirmation::dispatch($email->id);
         }
+    }
+
+    /**
+     * Notifikace Zásilkovny s RITM: bez AI, podle pevného formátu.
+     * Bez RITM → ignorovat. Stejné RITM → připojit k existující zakázce.
+     * Neznámý box → založit provozovnu z údajů v e-mailu.
+     */
+    private function processRitm(InboundEmail $email): ?Ticket
+    {
+        $projectId = $email->mailbox->project_id;
+        $ref = $this->ritm->ritm($email->subject);
+        if ($ref === null) {
+            $email->update(['status' => 'ignored', 'processed_at' => now(), 'ai_result' => ['engine' => 'ritm', 'reason' => 'Předmět neobsahuje RITM.']]);
+
+            return null;
+        }
+
+        if ($existing = Ticket::where('project_id', $projectId)->where('external_ref', $ref)->first()) {
+            $this->append($email, $existing);
+
+            return null;
+        }
+
+        $data = $this->ritm->parse((string) $email->body_text);
+        if ($data === null) {
+            throw new \RuntimeException("E-mail {$ref} nejde přečíst (chybí „Service type“ nebo „Locker: … ID: …“). Zpracuj ručně.");
+        }
+
+        return DB::transaction(function () use ($email, $projectId, $ref, $data) {
+            $location = $this->ritmLocation($projectId, $data, $ref);
+            $types = $email->mailbox->project->service_types ?? ['servis'];
+            $type = in_array('profilaxe', $types, true) && preg_match('/profyla|profila|prevent|maintenance|údržb/iu', $data['service_type']) ? 'profilaxe' : ($types[0] ?? 'servis');
+
+            $ticket = Ticket::create([
+                'project_id' => $projectId,
+                'end_customer_id' => $location->end_customer_id,
+                'location_id' => $location->id,
+                'external_ref' => $ref,
+                'service_type' => $type,
+                'priority' => $data['priority'],
+                'status' => TicketStatus::New,
+                'source' => 'email',
+                'needs_review' => false,
+                'title' => Str::limit($data['service_type'].' – '.$data['locker_code'], 250, ''),
+                'description' => trim($data['description']."\n\n".($data['location'] ? 'Location: '.$data['location'] : '').($data['priority_raw'] ? "\nPriority: ".$data['priority_raw'] : '')),
+                'reporter_name' => $email->from_name,
+                'reporter_email' => $email->from_email,
+            ]);
+            $ticket->history()->create(['to_status' => TicketStatus::New->value, 'note' => '📧 '.$ref.' z e-mailu '.$email->from_email]);
+            $this->attachFiles($email, $ticket);
+            TicketMessageId::remember($ticket->id, $email->message_id);
+            $email->update(['status' => 'ticket', 'ticket_id' => $ticket->id, 'processed_at' => now(),
+                'ai_result' => ['engine' => 'ritm', 'reason' => $ref.' · '.$data['locker_code'].' (ID '.$data['locker_id'].')', 'language' => 'cs']]);
+
+            return $ticket;
+        });
+    }
+
+    private function ritmLocation(int $projectId, array $d, string $ref): Location
+    {
+        $loc = Location::where('project_id', $projectId)
+            ->where(fn ($q) => $q->where('external_id', $d['locker_id'])->orWhereRaw('UPPER(code) = ?', [$d['locker_code']]))
+            ->first();
+
+        if ($loc) {
+            $fill = [];
+            if (! $loc->external_id) {
+                $fill['external_id'] = $d['locker_id'];
+            }
+            if ($loc->lat === null && $d['gps_lat'] !== null) {
+                $fill += ['lat' => $d['gps_lat'], 'lng' => $d['gps_lon']];
+            }
+            if ($fill) {
+                $loc->update($fill);
+            }
+
+            return $loc;
+        }
+
+        $addr = $this->ritm->splitAddress($d['location']);
+
+        return Location::create([
+            'project_id' => $projectId,
+            'end_customer_id' => EndCustomer::where('project_id', $projectId)->value('id'),
+            'code' => $d['locker_code'],
+            'external_id' => $d['locker_id'],
+            'name' => Str::limit($d['location'] ?: 'Z-BOX '.$d['locker_code'], 250, ''),
+            'street' => $addr['street'],
+            'city' => $addr['city'],
+            'zip' => $addr['zip'],
+            'country' => substr($d['locker_code'], 0, 2) === 'PL' ? 'PL' : (substr($d['locker_code'], 0, 2) === 'SK' ? 'SK' : 'CZ'),
+            'lat' => $d['gps_lat'],
+            'lng' => $d['gps_lon'],
+            'note' => 'Založeno automaticky z e-mailu '.$ref,
+        ]);
     }
 
     /** Zakázka, na kterou zpráva odpovídá (podle Message-ID ve vlákně, nebo čísla v předmětu) */

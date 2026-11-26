@@ -64,7 +64,8 @@ const T = {
     folder: 'Složka', fromAddress: 'Odesílatel (e-mail)', fromName: 'Odesílatel (jméno)', dedicated: 'Jen na požadavky',
     dedicatedHint: 'Ne = AI rozliší, co je požadavek; ostatní pošta se jen zaznamená.', autoReply: 'Posílat potvrzení s číslem',
     pwKeep: 'prázdné = beze změny', testConn: 'Otestovat připojení', fetchNow: 'Načíst teď', lastCheck: 'Naposledy',
-    connOk: 'OK', saveFirst: 'Nejdřív ulož.',
+    connOk: 'OK', saveFirst: 'Nejdřív ulož.', parser: 'Zpracování e-mailů', parsers: { ai: 'AI (obecné e-maily, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (pevný formát)' },
+    parserHint: 'RITM: zpracují se jen e-maily s RITM v předmětu; stejné RITM = stejná zakázka; neznámý box se založí sám.', extId: 'Externí ID (box ID)',
   },
   pl: {
     title: 'Dyspozytornia', email: 'E-mail', password: 'Hasło', login: 'Zaloguj', loginFailed: 'Błędny e-mail lub hasło.',
@@ -126,7 +127,8 @@ const T = {
     folder: 'Folder', fromAddress: 'Nadawca (e-mail)', fromName: 'Nadawca (nazwa)', dedicated: 'Tylko zgłoszenia',
     dedicatedHint: 'Nie = AI rozpozna, co jest zgłoszeniem; pozostała poczta zostanie tylko zapisana.', autoReply: 'Wysyłaj potwierdzenie z numerem',
     pwKeep: 'puste = bez zmian', testConn: 'Testuj połączenie', fetchNow: 'Pobierz teraz', lastCheck: 'Ostatnio',
-    connOk: 'OK', saveFirst: 'Najpierw zapisz.',
+    connOk: 'OK', saveFirst: 'Najpierw zapisz.', parser: 'Przetwarzanie e-maili', parsers: { ai: 'AI (ogólne e-maile, M4B…)', zasilkovna_ritm: 'Zásilkovna RITM (stały format)' },
+    parserHint: 'RITM: przetwarzane są tylko e-maile z RITM w temacie; ten sam RITM = to samo zlecenie; nieznany box zostanie założony automatycznie.', extId: 'ID zewnętrzne (ID boxu)',
   },
 };
 
@@ -471,7 +473,7 @@ async function renderTickets(q) {
     const overdue = tk.due_at && new Date(tk.due_at).getTime() < now && !['completed', 'closed', 'cancelled'].includes(tk.status);
     return `
       <tr class="prio-${esc(tk.priority)}" data-id="${tk.id}">
-        <td class="num">${esc(tk.number || '#' + tk.id)}</td>
+        <td class="num">${esc(tk.number || '#' + tk.id)}${tk.external_ref ? `<div class="muted small">${esc(tk.external_ref)}</div>` : ''}</td>
         <td><strong>${esc(tk.title)}</strong><div class="muted small">${tk.source === 'email' ? '📧 ' : ''}${esc(tk.project?.name || '')} · ${esc(t('stype.' + tk.service_type))}${tk.needs_review ? ` <span class="chip waiting">⚠ ${esc(t('reviewBadge'))}</span>` : ''}</div></td>
         <td>${tk.location ? `${esc(tk.location.code)} · ${esc(tk.location.name)}<div class="muted small">${esc(tk.location.city || '')}</div>` : '<span class="muted">—</span>'}</td>
         <td>${tk.technician ? esc(tk.technician.name) : '<span class="muted">—</span>'}</td>
@@ -730,7 +732,7 @@ async function renderTicket(id) {
 
   el.innerHTML = `
     <div class="page-head">
-      <h1>${esc(tk.number || '#' + tk.id)} · ${esc(tk.title)}</h1>
+      <h1>${esc(tk.number || '#' + tk.id)}${tk.external_ref ? ` <span class="muted" style="font-weight:500">(${esc(tk.external_ref)})</span>` : ''} · ${esc(tk.title)}</h1>
       ${chip(tk.status, t('status.' + tk.status))}
     </div>
     ${!manage ? `<div class="banner warn">${esc(t('readOnly'))}</div>` : ''}
@@ -950,6 +952,7 @@ async function editLocation(l, prj, defaultProject) {
         <label class="f"><span>${esc(t('endCustomer'))}</span><select name="end_customer_id"></select></label>
         <label class="f"><span class="req">${esc(t('code'))}</span><input type="text" name="code" required value="${esc(cur.code || '')}"></label>
         <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(cur.name || '')}"></label>
+        <label class="f"><span>${esc(t('extId'))}</span><input type="text" name="external_id" value="${esc(cur.external_id || '')}"></label>
         <label class="f full"><span>${esc(t('street'))}</span><input type="text" name="street" value="${esc(cur.street || '')}"></label>
         <label class="f"><span>${esc(t('city'))}</span><input type="text" name="city" value="${esc(cur.city || '')}"></label>
         <label class="f"><span>${esc(t('zip'))}</span><input type="text" name="zip" value="${esc(cur.zip || '')}"></label>
@@ -973,7 +976,7 @@ async function editLocation(l, prj, defaultProject) {
       e.preventDefault();
       const num = (v) => (v === '' ? null : Number(v));
       const body = {
-        end_customer_id: num(f.end_customer_id.value), code: f.code.value.trim(), name: f.name.value.trim(),
+        end_customer_id: num(f.end_customer_id.value), code: f.code.value.trim(), name: f.name.value.trim(), external_id: f.external_id.value.trim() || null,
         street: f.street.value.trim() || null, city: f.city.value.trim() || null, zip: f.zip.value.trim() || null,
         country: f.country.value, is_active: f.is_active.value === '1', lat: num(f.lat.value), lng: num(f.lng.value),
         note: f.note.value.trim() || null,
@@ -1412,6 +1415,7 @@ async function mailboxForm(m, prj) {
       <div class="form-grid">
         <label class="f"><span class="req">${esc(t('name'))}</span><input type="text" name="name" required value="${esc(cur.name || '')}"></label>
         <label class="f"><span class="req">${esc(t('project'))}</span><select name="project_id">${prj.map((p) => `<option value="${p.id}" ${p.id === cur.project_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <label class="f full"><span>${esc(t('parser'))}</span><select name="parser">${['ai', 'zasilkovna_ritm'].map((x) => `<option value="${x}" ${x === (cur.parser || 'ai') ? 'selected' : ''}>${esc(t('parsers.' + x))}</option>`).join('')}</select><span class="muted small">${esc(t('parserHint'))}</span></label>
         <div class="f full"><strong>${esc(t('imap'))}</strong></div>
         <label class="f"><span class="req">${esc(t('host'))}</span><input type="text" name="imap_host" required value="${esc(cur.imap_host || '')}" placeholder="imap.webglobe.cz"></label>
         <div class="form-grid" style="gap:0 8px"><label class="f"><span>${esc(t('port'))}</span><input type="number" name="imap_port" value="${cur.imap_port || 993}"></label><label class="f"><span>${esc(t('encryption'))}</span>${enc('imap_encryption', cur.imap_encryption)}</label></div>
@@ -1438,10 +1442,11 @@ async function mailboxForm(m, prj) {
     </form>`, (d, close) => {
     const f = d.querySelector('#mbf');
     const out = d.querySelector('#mb-out');
+    if (!m) f.parser.onchange = () => { f.auto_reply.value = f.parser.value === 'zasilkovna_ritm' ? '0' : '1'; };
     const body = () => {
       const n = (v) => (v ? Number(v) : null);
       const b = {
-        name: f.name.value.trim(), project_id: Number(f.project_id.value),
+        name: f.name.value.trim(), project_id: Number(f.project_id.value), parser: f.parser.value,
         imap_host: f.imap_host.value.trim(), imap_port: n(f.imap_port.value), imap_encryption: f.imap_encryption.value,
         imap_username: f.imap_username.value.trim(), imap_folder: f.imap_folder.value.trim() || 'INBOX',
         smtp_host: f.smtp_host.value.trim() || null, smtp_port: n(f.smtp_port.value), smtp_encryption: f.smtp_encryption.value,

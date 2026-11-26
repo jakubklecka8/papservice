@@ -82,6 +82,7 @@ Dispečink → **Nastavení**: schránky (každá patří k projektu) a API klí
 - nový e-mail → AI (Claude) vytáhne typ, prioritu, název a nápovědy k provozovně → provozovna se dohledá v DB; bez API klíče se hledá jen kód provozovny v textu
 - nejasná provozovna → zakázka s „⚠ ověřit provozovnu“, dispečer vybere z kandidátů
 - potvrzení s číslem odejde až po uložení zakázky, jednou, ve stejném vlákně, přes SMTP schránky (CZ/PL podle jazyka e-mailu)
+- schránka v režimu **Zásilkovna RITM**: čtou se jen e-maily s RITM v předmětu (pevný formát Service type / Locker / Location / Priority / Description, bez AI); stejné RITM = stejná zakázka; neznámý box se založí jako provozovna i s adresou a GPS
 - **E-maily** v dispečinku: přehled, k řešení (nejasné, chyby, ignorované), ruční „Vytvořit zakázku“
 
 ## Sklady (M4)
