@@ -370,6 +370,11 @@ class EmailIntakeTest extends TestCase
         $this->assertSame(0, Ticket::count());
         $this->assertSame(['ignored', 'ignored'], InboundEmail::orderBy('id')->pluck('status')->all());
         $this->assertCount(0, $this->sent);
+
+        // přehled e-mailů musí zvládnout e-maily bez zakázky
+        Sanctum::actingAs($this->dispecer);
+        $this->getJson('/api/v1/emails')->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('data.0.ticket', null);
+        $this->getJson('/api/v1/emails/'.InboundEmail::first()->id)->assertOk();
     }
 
     public function test_reprocess_after_switching_mailbox_to_ritm(): void

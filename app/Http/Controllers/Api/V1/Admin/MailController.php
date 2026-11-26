@@ -330,7 +330,7 @@ class MailController extends Controller
             'subject' => $e->subject,
             'received_at' => $e->received_at?->toIso8601String(),
             'status' => $e->status,
-            'ticket' => $e->ticket?->only(['id', 'number']) + ($e->ticket ? ['status' => $e->ticket->status->value] : []),
+            'ticket' => $e->ticket ? ['id' => $e->ticket->id, 'number' => $e->ticket->number, 'status' => $e->ticket->status->value] : null,
             'attachments_count' => count($e->attachments ?? []),
             'confirmation_sent_at' => $e->confirmation_sent_at?->toIso8601String(),
             'error' => $e->error,
